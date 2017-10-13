@@ -9,6 +9,18 @@
 /* monetdb_config.h must be the first include in each .c file */
 #include "monetdb_config.h"
 #include "udf.h"
+#include <pcre.h>
+#define OVECCOUNT 30
+#define WORCOUNT 100
+#define EBUFLEN 128 
+#define BUFLEN 1024 
+
+
+str UDFtest(dbl *ret,dbl *_p1,dbl *_p2)
+{
+    *ret = *_p1+*_p2;
+    return MAL_SUCCEED;
+}
 
 /* Reverse a string */
 
@@ -42,9 +54,9 @@ UDFreverse_(char **ret, const char *src)
 
 	/* copy characters from src to dst in reverse order */
 	dst[len] = 0;
-	while (len > 0)
+	while (len > 0) {
 		*dst++ = src[--len];
-
+	}
 	return MAL_SUCCEED;
 }
 
@@ -58,6 +70,179 @@ UDFreverse(char **ret, const char **arg)
 	return UDFreverse_ ( ret, *arg );
 }
 
+
+char *
+UDFreverse1(char **ret, const char **arg)
+{
+	/* assert calling sanity */
+	assert(ret != NULL && arg != NULL);
+
+	return UDFreverse_ ( ret, *arg );
+}
+
+char *
+UDFregex_(int *ret, const char *src, pcre* re, int dfa)
+{
+	//printf("pattern is %s, string is %s\n", pattern, src);
+	int  ovector[OVECCOUNT]; 
+	int  rc = -1; 
+
+	if (re == NULL)
+	{
+		//printf("PCRE compilation failed at offset %d: %s\n", erroffset, error); 
+		throw(MAL, "udf.regex", "PCRE compilation failed");
+	}
+
+	if (dfa == 0)
+		rc = pcre_exec(re, NULL, src, strlen(src), 0, 0, ovector, OVECCOUNT);
+	else 
+	{
+    		int  workspace[WORCOUNT];
+		rc = pcre_dfa_exec(re, NULL, src, strlen(src), 0, PCRE_DFA_SHORTEST, ovector, OVECCOUNT, workspace, WORCOUNT);
+	}
+	if (rc < 0) 
+	{
+		if (rc == PCRE_ERROR_NOMATCH)
+			*ret = 0;
+		else 
+		{
+			pcre_free(re);
+			//throw(MAL, "udf.regex", "match pattern is error");
+		} 
+	}
+	else
+		*ret = 1;
+
+	return MAL_SUCCEED;
+}
+
+
+char *
+UDFregex(int *ret, const char **src, const char **pattern)
+{
+	/* assert calling sanity */
+	pcre  *re = NULL;
+	const char *error; 
+	int  erroffset; 
+	assert(ret != NULL && pattern != NULL && src != NULL);
+	re = pcre_compile(*pattern, 0, &error, &erroffset, NULL); 
+	return UDFregex_(ret, *src, re, 0);
+}
+
+
+char *
+UDFdfaregex(int *ret, const char **src, const char **pattern)
+{
+	/* assert calling sanity */
+	pcre  *re = NULL;
+	const char *error; 
+	int  erroffset; 
+	assert(ret != NULL && pattern != NULL && src != NULL);
+	re = pcre_compile(*pattern, 0, &error, &erroffset, NULL); 
+	return UDFregex_(ret, *src, re, 1);
+}
+
+
+/************** ADD by me ***********/
+/* actual implementation */
+static char *
+UDFBATregex_(BAT **ret, BAT *src, pcre* re)
+{
+	BATiter li;
+	BAT *bn = NULL;
+	BUN p = 0, q = 0;
+
+	/* assert calling sanity */
+	assert(ret != NULL);
+
+	/* handle NULL pointer */
+	if (src == NULL)
+		throw(MAL, "batudf.reverse",  SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
+
+	/* check tail type */
+	if (src->ttype != TYPE_str) {
+		throw(MAL, "batudf.reverse",
+		      "tail-type of input BAT must be TYPE_str");
+	}
+
+	/* allocate void-headed result BAT */
+	bn = COLnew(src->hseqbase, TYPE_str, BATcount(src), TRANSIENT);
+	if (bn == NULL) {
+		throw(MAL, "batudf.reverse", SQLSTATE(HY001) MAL_MALLOC_FAIL);
+	}
+
+	/* create BAT iterator */
+	li = bat_iterator(src);
+
+	/* the core of the algorithm, expensive due to malloc/frees */
+	BATloop(src, p, q) {
+		int *tr = NULL;
+		char *err = NULL;
+
+		const char *t = (const char *) BUNtail(li, p);
+
+		/* revert tail value */
+		err = UDFregex_(tr, t, re, 1);
+
+		if (err != MAL_SUCCEED) {
+			/* error -> bail out */
+			BBPunfix(bn->batCacheid);
+			return err;
+		}
+
+		/* assert logical sanity */
+		assert(tr != NULL);
+
+		/* append reversed tail in result BAT */
+		if (BUNappend(bn, tr, FALSE) != GDK_SUCCEED) {
+			BBPunfix(bn->batCacheid);
+			throw(MAL, "batudf.reverse", SQLSTATE(HY001) MAL_MALLOC_FAIL);
+		}
+
+		/* free memory allocated in UDFreverse_() */
+		GDKfree(tr);
+	}
+
+	*ret = bn;
+
+	return MAL_SUCCEED;
+}
+
+/* MAL wrapper */
+
+char *
+UDFBATregex(bat *ret, const bat *arg, const char **pattern)
+{
+	BAT *res = NULL, *src = NULL;
+	char *msg = NULL;
+	pcre  *re = NULL;
+	const char *error; 
+	int  erroffset; 
+
+	/* assert calling sanity */
+	assert(ret != NULL && arg != NULL);
+
+	/* bat-id -> BAT-descriptor */
+	if ((src = BATdescriptor(*arg)) == NULL)
+		throw(MAL, "batudf.reverse",  SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
+
+
+	re = pcre_compile(*pattern, 0, &error, &erroffset, NULL); 
+	/* do the work */
+	msg = UDFBATregex_( &res, src, re);
+
+	/* release input BAT-descriptor */
+	BBPunfix(src->batCacheid);
+
+	if (msg == MAL_SUCCEED) {
+		/* register result BAT in buffer pool */
+		BBPkeepref((*ret = res->batCacheid));
+	}
+
+	return msg;
+}
+
+/***********/
 
 /* Reverse a BAT of strings */
 /*
@@ -154,6 +339,7 @@ UDFBATreverse(bat *ret, const bat *arg)
 
 	return msg;
 }
+
 
 
 

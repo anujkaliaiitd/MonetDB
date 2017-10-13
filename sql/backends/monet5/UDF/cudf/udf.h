@@ -30,7 +30,14 @@
 /* export MAL wrapper functions */
 
 udf_export char * UDFreverse(char **ret, const char **arg);
+
+udf_export char * UDFreverse1(char **ret, const char **arg);
+udf_export char * UDFdfaregex(int *ret, const char **src, const char **pattern);
+udf_export char * UDFregex(int *ret, const char **src, const char **pattern);
 udf_export char * UDFBATreverse(bat *ret, const bat *arg);
+udf_export char * UDFBATregex(bat *ret, const bat *arg, const char **pattern);
+
+udf_export str UDFtest(dbl *,dbl*,dbl*);
 
 /* using C macro for convenient type-expansion */
 #define UDFfuse_scalar_decl(in,out) \

@@ -6,11 +6,22 @@
 
 -- add function signatures to SQL catalog
 
+create function calc_test(one double,two double)
+returns double external name udf.calc_test;
+
+create function regex(pattern string, src string)
+returns int external name udf.regex;
+
+create function dfaregex(pattern string, src string)
+returns int external name udf.dfaregex;
 
 -- Reverse a string
 create function reverse(src string)
 returns string external name udf.reverse;
 
+-- Reverse a string
+create function reverse1(src string)
+returns string external name udf.reverse1;
 
 -- fuse two (1-byte) tinyint values into one (2-byte) smallint value
 create function fuse(one tinyint, two tinyint)
@@ -23,3 +34,9 @@ returns integer external name udf.fuse;
 -- fuse two (4-byte) integer values into one (8-byte) bigint value
 create function fuse(one integer, two integer)
 returns bigint external name udf.fuse;
+
+create function pcre_match(s string, pattern string)
+returns BOOLEAN external name pcre.match;
+
+create function pcre_imatch(s string, pattern string)
+returns BOOLEAN external name pcre.imatch;

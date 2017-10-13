@@ -4,11 +4,32 @@
 #
 # Copyright 1997 - July 2008 CWI, August 2008 - 2017 MonetDB B.V.
 
+module udf;
+command calc_test(one:dbl,two:dbl):dbl
+address UDFtest
+comment "udf floating point test";
+
+module udf;
+command regex(src:str, pattern:str):int
+address UDFregex
+comment "regex function";
+
+module udf;
+command dfaregex(src:str, pattern:str):int
+address UDFdfaregex
+comment "dfa regex function";
+
 # scalar MAL signatures
 module udf;
 
 command reverse(ra1:str):str
 address UDFreverse
+comment "Reverse a string";
+
+module udf;
+
+command reverse1(ra1:str):str
+address UDFreverse1
 comment "Reverse a string";
 
 
@@ -19,6 +40,11 @@ command reverse(b:bat[:str]):bat[:str]
 address UDFBATreverse
 comment "Reverse a BAT of strings";
 
+module batudf;
+
+command regex(b:bat[:str], pattern:str):bat[:str]
+address UDFBATregex
+comment "BAT Regex function";
 
 
 # scalar MAL signatures
