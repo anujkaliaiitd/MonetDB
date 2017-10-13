@@ -1,15 +1,19 @@
 import pymonetdb
+import os
 table_name = "regextest"
 
 def load(file_path):
 	connection = pymonetdb.connect(username="monetdb", password="monetdb", hostname="localhost", database="demo")
 	cursor = connection.cursor()
-	try:
-		cursor.execute("drop table %s" % table_name)
+	try:    
+                cmd = "drop table if exists %s;" % table_name
+		cursor.execute(cmd)
+                connection.commit()
 	except:
 		print "table not exist can not drop"
 	try:
-		cursor.execute("create table if not exists %s (name VARCHAR(256));" % table_name)
+                cmd = "create table if not exists %s (name VARCHAR(256));" % table_name
+		cursor.execute(cmd)
 		connection.commit()
 	except:
 		print "table exists"
@@ -27,13 +31,14 @@ def load(file_path):
 			if count % 1000 == 0:
 				connection.commit()
 		except:
-			print cmd
+                        return
+			#print cmd
 	connection.commit()
 	cmd = "select count(*) from %s" % table_name
 	cursor.execute(cmd)
 	print cursor.fetchone()
-	
-file_path =  "/home/xzhang3/testenv/string-generator/generate.out"
+
+file_path =  os.path.join(os.path.dirname(os.path.abspath(__file__)), "string-generator/generate.out")
 load(file_path)
 
 
