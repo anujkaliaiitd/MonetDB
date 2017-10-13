@@ -1,0 +1,19 @@
+[Unit]
+Description=MonetDB database server daemon
+Documentation=man:monetdbd https://www.monetdb.org/Documentation/monetdbd-man-page
+After=network.target
+
+[Service]
+Type=forking
+User=monetdb
+Group=monetdb
+ExecStart=/usr/local/bin/monetdbd start /usr/local/var/monetdb5/dbfarm
+ExecStop=/usr/local/bin/monetdbd stop /usr/local/var/monetdb5/dbfarm
+Restart=on-failure
+PIDFile=/usr/local/var/run/monetdb/merovingian.pid
+PrivateDevices=no
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

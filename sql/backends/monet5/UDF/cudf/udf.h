@@ -39,6 +39,8 @@ udf_export char * UDFBATregex(bat *ret, const bat *arg, const char **pattern);
 
 udf_export str UDFtest(dbl *,dbl*,dbl*);
 
+udf_export str UDFtest(dbl *,dbl*,dbl*);
+
 /* using C macro for convenient type-expansion */
 #define UDFfuse_scalar_decl(in,out) \
         udf_export char * UDFfuse_##in##_##out(out *ret, const in *one, const in *two)
