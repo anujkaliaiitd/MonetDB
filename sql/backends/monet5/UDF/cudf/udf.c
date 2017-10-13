@@ -176,7 +176,7 @@ UDFBATregex_(BAT **ret, BAT *src, pcre* re)
 
 	/* the core of the algorithm, expensive due to malloc/frees */
 	BATloop(src, p, q) {
-		int *tr = NULL;
+		int *tr = malloc(sizeof *tr);
 		char *err = NULL;
 
 		const char *t = (const char *) BUNtail(li, p);
@@ -200,7 +200,8 @@ UDFBATregex_(BAT **ret, BAT *src, pcre* re)
 		}
 
 		/* free memory allocated in UDFreverse_() */
-		GDKfree(tr);
+		free(tr);
+		//GDKfree(tr);
 	}
 
 	*ret = bn;
