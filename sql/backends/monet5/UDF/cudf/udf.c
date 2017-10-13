@@ -136,7 +136,8 @@ UDFdfaregex(int *ret, const char **pattern, const char **src)
 {
 	/* assert calling sanity */
 	assert(ret != NULL && pattern != NULL && src != NULL);
-	pcre  *re = NULL;
+	pcre  *re;
+        re = NULL;
 	const char *error; 
 	int  erroffset; 
 	re = pcre_compile(*pattern, 0, &error, &erroffset, NULL); 

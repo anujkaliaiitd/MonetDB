@@ -1,0 +1,219 @@
+diff --git a/sql/backends/monet5/UDF/cudf/80_udf.sql b/sql/backends/monet5/UDF/cudf/80_udf.sql
+index ddda9be690..00b4e2f703 100644
+--- a/sql/backends/monet5/UDF/cudf/80_udf.sql
++++ b/sql/backends/monet5/UDF/cudf/80_udf.sql
+@@ -6,11 +6,22 @@
+ 
+ -- add function signatures to SQL catalog
+ 
++create function calc_test(one double,two double)
++returns double external name udf.calc_test;
++
++create function regex(pattern string, src string)
++returns int external name udf.regex;
++
++create function dfaregex(pattern string, src string)
++returns int external name udf.dfaregex;
+ 
+ -- Reverse a string
+ create function reverse(src string)
+ returns string external name udf.reverse;
+ 
++-- Reverse a string
++create function reverse1(src string)
++returns string external name udf.reverse1;
+ 
+ -- fuse two (1-byte) tinyint values into one (2-byte) smallint value
+ create function fuse(one tinyint, two tinyint)
+@@ -23,3 +34,9 @@ returns integer external name udf.fuse;
+ -- fuse two (4-byte) integer values into one (8-byte) bigint value
+ create function fuse(one integer, two integer)
+ returns bigint external name udf.fuse;
++
++create function pcre_match(s string, pattern string)
++returns BOOLEAN external name pcre.match;
++
++create function pcre_imatch(s string, pattern string)
++returns BOOLEAN external name pcre.imatch;
+diff --git a/sql/backends/monet5/UDF/cudf/udf.c b/sql/backends/monet5/UDF/cudf/udf.c
+index 03e043abd1..5744bcc857 100644
+--- a/sql/backends/monet5/UDF/cudf/udf.c
++++ b/sql/backends/monet5/UDF/cudf/udf.c
+@@ -9,6 +9,18 @@
+ /* monetdb_config.h must be the first include in each .c file */
+ #include "monetdb_config.h"
+ #include "udf.h"
++#include <pcre.h>
++#define OVECCOUNT 30
++#define WORCOUNT 100
++#define EBUFLEN 128 
++#define BUFLEN 1024 
++
++
++str UDFtest(dbl *ret,dbl *_p1,dbl *_p2)
++{
++    *ret = *_p1+*_p2;
++    return MAL_SUCCEED;
++}
+ 
+ /* Reverse a string */
+ 
+@@ -42,8 +54,11 @@ UDFreverse_(char **ret, const char *src)
+ 
+ 	/* copy characters from src to dst in reverse order */
+ 	dst[len] = 0;
+-	while (len > 0)
+-		*dst++ = src[--len];
++	while (len > 0) {
++		*dst++ = 'x';
++		len--;
++	}
++		//*dst++ = src[--len];
+ 
+ 	return MAL_SUCCEED;
+ }
+@@ -59,6 +74,78 @@ UDFreverse(char **ret, const char **arg)
+ }
+ 
+ 
++char *
++UDFreverse1(char **ret, const char **arg)
++{
++	/* assert calling sanity */
++	assert(ret != NULL && arg != NULL);
++
++	return UDFreverse_ ( ret, *arg );
++}
++
++char *
++UDFregex_(int *ret, const char *pattern, const char *src, pcre* re, int dfa)
++{
++	//printf("pattern is %s, string is %s\n", pattern, src);
++	int  ovector[OVECCOUNT]; 
++	int  workspace[WORCOUNT];
++	int  rc = -1; 
++
++	if (re == NULL)
++	{
++		//printf("PCRE compilation failed at offset %d: %s\n", erroffset, error); 
++		throw(MAL, "udf.regex", "PCRE compilation failed");
++	}
++
++	if (dfa == 0)
++		rc = pcre_exec(re, NULL, src, strlen(src), 0, 0, ovector, OVECCOUNT);
++	else 
++	{
++    		int  workspace[WORCOUNT];
++		rc = pcre_dfa_exec(re, NULL, src, strlen(src), 0, PCRE_DFA_SHORTEST, ovector, OVECCOUNT, workspace, WORCOUNT);
++	}
++	if (rc < 0) 
++	{
++		if (rc == PCRE_ERROR_NOMATCH)
++			*ret = 0;
++		else 
++		{
++			pcre_free(re);
++			//throw(MAL, "udf.regex", "match pattern is error");
++		} 
++	}
++	else
++		*ret = 1;
++
++	return MAL_SUCCEED;
++}
++
++
++char *
++UDFregex(int *ret, const char **pattern, const char **src)
++{
++	/* assert calling sanity */
++	assert(ret != NULL && pattern != NULL && src != NULL);
++	pcre  *re = NULL;
++	const char *error; 
++	int  erroffset; 
++	re = pcre_compile(*pattern, 0, &error, &erroffset, NULL); 
++	return UDFregex_(ret, *pattern, *src, re, 0);
++}
++
++
++char *
++UDFdfaregex(int *ret, const char **pattern, const char **src)
++{
++	/* assert calling sanity */
++	assert(ret != NULL && pattern != NULL && src != NULL);
++	pcre  *re = NULL;
++	const char *error; 
++	int  erroffset; 
++	re = pcre_compile(*pattern, 0, &error, &erroffset, NULL); 
++	return UDFregex_(ret, *pattern, *src, re, 1);
++}
++
+ /* Reverse a BAT of strings */
+ /*
+  * Generic "type-oblivious" version,
+@@ -157,6 +244,7 @@ UDFBATreverse(bat *ret, const bat *arg)
+ 
+ 
+ 
++
+ /* fuse */
+ 
+ /* instantiate type-specific functions */
+diff --git a/sql/backends/monet5/UDF/cudf/udf.h b/sql/backends/monet5/UDF/cudf/udf.h
+index dfbdd5e8ff..4af36c12b7 100644
+--- a/sql/backends/monet5/UDF/cudf/udf.h
++++ b/sql/backends/monet5/UDF/cudf/udf.h
+@@ -30,8 +30,14 @@
+ /* export MAL wrapper functions */
+ 
+ udf_export char * UDFreverse(char **ret, const char **arg);
++
++udf_export char * UDFreverse1(char **ret, const char **arg);
++udf_export char * UDFdfaregex(int *ret, const char **pattern, const char **src);
++udf_export char * UDFregex(int *ret, const char **pattern, const char **src);
+ udf_export char * UDFBATreverse(bat *ret, const bat *arg);
+ 
++udf_export str UDFtest(dbl *,dbl*,dbl*);
++
+ /* using C macro for convenient type-expansion */
+ #define UDFfuse_scalar_decl(in,out) \
+         udf_export char * UDFfuse_##in##_##out(out *ret, const in *one, const in *two)
+diff --git a/sql/backends/monet5/UDF/cudf/udf.mal b/sql/backends/monet5/UDF/cudf/udf.mal
+index d003bd90fc..0a09d03b0b 100644
+--- a/sql/backends/monet5/UDF/cudf/udf.mal
++++ b/sql/backends/monet5/UDF/cudf/udf.mal
+@@ -4,6 +4,21 @@
+ #
+ # Copyright 1997 - July 2008 CWI, August 2008 - 2017 MonetDB B.V.
+ 
++module udf;
++command calc_test(one:dbl,two:dbl):dbl
++address UDFtest
++comment "udf floating point test";
++
++module udf;
++command regex(pattern:str, src:str):int
++address UDFregex
++comment "regex function";
++
++module udf;
++command dfaregex(pattern:str, src:str):int
++address UDFdfaregex
++comment "dfa regex function";
++
+ # scalar MAL signatures
+ module udf;
+ 
+@@ -11,6 +26,12 @@ command reverse(ra1:str):str
+ address UDFreverse
+ comment "Reverse a string";
+ 
++module udf;
++
++command reverse1(ra1:str):str
++address UDFreverse1
++comment "Reverse a string";
++
+ 
+ # BAT MAL signatures
+ module batudf;
