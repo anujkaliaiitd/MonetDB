@@ -146,7 +146,7 @@ UDFdfaregex(int *ret, const char **src, const char **pattern)
 /************** ADD by me ***********/
 /* actual implementation */
 static char *
-UDFBATregex_(BAT **ret, BAT *src, pcre* re)
+UDFBATregex_(BAT **ret, BAT *src, pcre* re, int dfa)
 {
 	BATiter li;
 	BAT *bn = NULL;
@@ -182,8 +182,8 @@ UDFBATregex_(BAT **ret, BAT *src, pcre* re)
 		const char *t = (const char *) BUNtail(li, p);
 
 		/* revert tail value */
-		*tr = 1;
-		err = UDFregex_(tr, t, re, 1);
+		*tr = 0;
+		err = UDFregex_(tr, t, re, dfa);
 
 		if (err != MAL_SUCCEED) {
 			/* error -> bail out */
@@ -212,8 +212,8 @@ UDFBATregex_(BAT **ret, BAT *src, pcre* re)
 
 /* MAL wrapper */
 
-char *
-UDFBATregex(bat *ret, const bat *arg, const char **pattern)
+static char *
+UDFBATcommentregex_(bat *ret, const bat *arg, const char **pattern, int dfa)
 {
 	BAT *res = NULL, *src = NULL;
 	char *msg = NULL;
@@ -231,7 +231,7 @@ UDFBATregex(bat *ret, const bat *arg, const char **pattern)
 
 	re = pcre_compile(*pattern, 0, &error, &erroffset, NULL); 
 	/* do the work */
-	msg = UDFBATregex_( &res, src, re);
+	msg = UDFBATregex_( &res, src, re, dfa);
 
 	/* release input BAT-descriptor */
 	BBPunfix(src->batCacheid);
@@ -242,6 +242,16 @@ UDFBATregex(bat *ret, const bat *arg, const char **pattern)
 	}
 
 	return msg;
+}
+
+char * 
+UDFBATregex(bat *ret, const bat *arg, const char **pattern) {
+	return UDFBATcommentregex_(ret, arg, pattern, 0);
+}
+
+char * 
+UDFBATdfaregex(bat *ret, const bat *arg, const char **pattern) {
+	return UDFBATcommentregex_(ret, arg, pattern, 1);
 }
 
 /***********/

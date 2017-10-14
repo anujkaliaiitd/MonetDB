@@ -38,7 +38,6 @@ command reverse(b:bat[:str]):bat[:str]
 address UDFBATreverse
 comment "Reverse a BAT of strings";
 
-
 module batudf;
 command reverse1(b:bat[:str]):bat[:str]
 address UDFBATreverse1
@@ -47,8 +46,12 @@ comment "Reverse a BAT of strings";
 module batudf;
 command regex(b:bat[:str], pattern:str):bat[:int]
 address UDFBATregex
-comment "Regex a BAT of strings";
+comment "NFA Regex a BAT of strings";
 
+module batudf;
+command dfaregex(b:bat[:str], pattern:str):bat[:int]
+address UDFBATdfaregex
+comment "DFA Regex a BAT of strings";
 
 # scalar MAL signatures
 module udf;
