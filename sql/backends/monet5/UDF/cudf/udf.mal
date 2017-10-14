@@ -9,6 +9,7 @@ command calc_test(one:dbl,two:dbl):dbl
 address UDFtest
 comment "udf floating point test";
 
+
 module udf;
 command regex(src:str, pattern:str):int
 address UDFregex
@@ -21,13 +22,11 @@ comment "dfa regex function";
 
 # scalar MAL signatures
 module udf;
-
 command reverse(ra1:str):str
 address UDFreverse
 comment "Reverse a string";
 
 module udf;
-
 command reverse1(ra1:str):str
 address UDFreverse1
 comment "Reverse a string";
@@ -35,21 +34,24 @@ comment "Reverse a string";
 
 # BAT MAL signatures
 module batudf;
-
 command reverse(b:bat[:str]):bat[:str]
 address UDFBATreverse
 comment "Reverse a BAT of strings";
 
-module batudf;
 
-command regex(b:bat[:str], pattern:str):bat[:str]
+module batudf;
+command reverse1(b:bat[:str]):bat[:str]
+address UDFBATreverse1
+comment "Reverse a BAT of strings";
+
+module batudf;
+command regex(b:bat[:str], pattern:str):bat[:int]
 address UDFBATregex
-comment "BAT Regex function";
+comment "Regex a BAT of strings";
 
 
 # scalar MAL signatures
 module udf;
-
 command fuse(one:bte,two:bte):sht
 address UDFfuse_bte_sht
 comment "fuse two (1-byte) bte values into one (2-byte) sht value";

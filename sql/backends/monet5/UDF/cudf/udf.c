@@ -157,18 +157,18 @@ UDFBATregex_(BAT **ret, BAT *src, pcre* re)
 
 	/* handle NULL pointer */
 	if (src == NULL)
-		throw(MAL, "batudf.reverse",  SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
+		throw(MAL, "batudf.regex",  SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
 
 	/* check tail type */
 	if (src->ttype != TYPE_str) {
-		throw(MAL, "batudf.reverse",
+		throw(MAL, "batudf.regex",
 		      "tail-type of input BAT must be TYPE_str");
 	}
 
 	/* allocate void-headed result BAT */
-	bn = COLnew(src->hseqbase, TYPE_str, BATcount(src), TRANSIENT);
+	bn = COLnew(src->hseqbase, TYPE_int, BATcount(src), TRANSIENT);
 	if (bn == NULL) {
-		throw(MAL, "batudf.reverse", SQLSTATE(HY001) MAL_MALLOC_FAIL);
+		throw(MAL, "batudf.regex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
 	}
 
 	/* create BAT iterator */
@@ -182,6 +182,7 @@ UDFBATregex_(BAT **ret, BAT *src, pcre* re)
 		const char *t = (const char *) BUNtail(li, p);
 
 		/* revert tail value */
+		*tr = 1;
 		err = UDFregex_(tr, t, re, 1);
 
 		if (err != MAL_SUCCEED) {
@@ -196,7 +197,7 @@ UDFBATregex_(BAT **ret, BAT *src, pcre* re)
 		/* append reversed tail in result BAT */
 		if (BUNappend(bn, tr, FALSE) != GDK_SUCCEED) {
 			BBPunfix(bn->batCacheid);
-			throw(MAL, "batudf.reverse", SQLSTATE(HY001) MAL_MALLOC_FAIL);
+			throw(MAL, "batudf.regex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
 		}
 
 		/* free memory allocated in UDFreverse_() */
@@ -225,7 +226,7 @@ UDFBATregex(bat *ret, const bat *arg, const char **pattern)
 
 	/* bat-id -> BAT-descriptor */
 	if ((src = BATdescriptor(*arg)) == NULL)
-		throw(MAL, "batudf.reverse",  SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
+		throw(MAL, "batudf.regex",  SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
 
 
 	re = pcre_compile(*pattern, 0, &error, &erroffset, NULL); 
@@ -342,6 +343,32 @@ UDFBATreverse(bat *ret, const bat *arg)
 }
 
 
+char *
+UDFBATreverse1(bat *ret, const bat *arg)
+{
+	BAT *res = NULL, *src = NULL;
+	char *msg = NULL;
+
+	/* assert calling sanity */
+	assert(ret != NULL && arg != NULL);
+
+	/* bat-id -> BAT-descriptor */
+	if ((src = BATdescriptor(*arg)) == NULL)
+		throw(MAL, "batudf.reverse",  SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
+
+	/* do the work */
+	msg = UDFBATreverse_ ( &res, src );
+
+	/* release input BAT-descriptor */
+	BBPunfix(src->batCacheid);
+
+	if (msg == MAL_SUCCEED) {
+		/* register result BAT in buffer pool */
+		BBPkeepref((*ret = res->batCacheid));
+	}
+
+	return msg;
+}
 
 
 /* fuse */
