@@ -68,3 +68,6 @@ testing/
 clients/examples/
 buildtools/conf/
 *.pc
+configure
+testenv/string-generator/generate_input
+libtool

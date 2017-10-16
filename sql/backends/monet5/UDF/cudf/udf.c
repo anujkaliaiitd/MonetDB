@@ -10,16 +10,97 @@
 #include "monetdb_config.h"
 #include "udf.h"
 #include <pcre.h>
+#include <hs/hs.h>
+#include <stdio.h>
+
 #define OVECCOUNT 30
 #define WORCOUNT 100
 #define EBUFLEN 128 
 #define BUFLEN 1024 
 
+#include <time.h>
+#include <math.h>
+
+#define TIME_TYPE                   clock_t
+#define GET_TIME(res)               { res = clock(); }
+#define TIME_DIFF_IN_MS(begin, end) (((double) (end - start)) * 1000 / CLOCKS_PER_SEC)
+double total_time = 0;
+time_t last_update_time = 0;
+
+void reset_total_time() {
+	if (last_update_time == 0) {
+		last_update_time = time(NULL);
+		return;
+	}
+    time_t start = time(NULL);
+    double interval = (double)(start - last_update_time);
+    if (interval > 1) {
+	   total_time = 0;
+    }
+}
+
+
+/*******************/
+static int eventHandler(unsigned int  id,
+						unsigned long long from,
+						unsigned long long to,
+						unsigned int flags,
+						void * ctx) {
+	int *cur = (int *)ctx;
+	*cur = 1;
+	return 0;
+}
+
+char *
+UDFhyperscanregex_(int *ret, const char *src,  hs_database_t* database) {
+	hs_scratch_t * scratch = NULL;
+	if (hs_alloc_scratch(database, &scratch) != HS_SUCCESS) {
+		hs_free_database(database);
+		throw(MAL, "udf.hyperscanregex", "Unable to allocate scratch space\n");
+	}
+
+	*ret = 0;
+	int subject_len = strlen(src);
+    	TIME_TYPE start = 0, end = 0;
+        GET_TIME(start);
+	if (hs_scan(database, src, subject_len, 0, scratch, eventHandler, ret) != HS_SUCCESS) 	
+	{
+		hs_free_scratch(scratch);
+		hs_free_database(database);
+		throw(MAL, "udf.hyperscanregex", "Unable to scan input buffer\n");
+		return 0;
+	}
+        GET_TIME(end);
+	hs_free_scratch(scratch);
+	hs_free_database(database);
+    double time_spend = TIME_DIFF_IN_MS(start, end);
+	total_time += time_spend;
+	last_update_time = time(NULL);
+	printf("hyperscan time spend %7.7f\n", total_time);	
+	return MAL_SUCCEED;
+}
+
+char *
+UDFhyperscanregex(int *ret, const char **src, const char **pattern)
+{
+	hs_database_t * database;
+	hs_compile_error_t * compile_err;
+	assert(ret != NULL && pattern != NULL && src != NULL);
+	if (hs_compile(*pattern, HS_FLAG_SINGLEMATCH | HS_FLAG_PREFILTER, HS_MODE_BLOCK, NULL, &database, &compile_err) != HS_SUCCESS) {
+		hs_free_compile_error(compile_err);
+		throw(MAL, "udf.hyperscanregex", "Unable to compile pattern");
+	}
+	reset_total_time();
+	return UDFhyperscanregex_(ret, *src, database);
+}
+
+/***********************************/
+
 
 str UDFtest(dbl *ret,dbl *_p1,dbl *_p2)
 {
-    *ret = *_p1+*_p2;
-    return MAL_SUCCEED;
+	*ret = *_p1+*_p2;
+	return MAL_SUCCEED;
 }
 
 /* Reverse a string */
@@ -40,7 +121,7 @@ UDFreverse_(char **ret, const char *src)
 		*ret = GDKstrdup(str_nil);
 		if (*ret == NULL)
 			throw(MAL, "udf.reverse",
-			      "failed to create copy of str_nil");
+				  "failed to create copy of str_nil");
 
 		return MAL_SUCCEED;
 	}
@@ -50,7 +131,7 @@ UDFreverse_(char **ret, const char *src)
 	*ret = dst = GDKmalloc(len + 1);
 	if (dst == NULL)
 		throw(MAL, "udf.reverse",
-		      "failed to allocate string of length " SZFMT, len + 1);
+			  "failed to allocate string of length " SZFMT, len + 1);
 
 	/* copy characters from src to dst in reverse order */
 	dst[len] = 0;
@@ -93,13 +174,22 @@ UDFregex_(int *ret, const char *src, pcre* re, int dfa)
 		throw(MAL, "udf.regex", "PCRE compilation failed");
 	}
 
+    	TIME_TYPE start = 0, end = 0;
+        GET_TIME(start);
+
 	if (dfa == 0)
 		rc = pcre_exec(re, NULL, src, strlen(src), 0, 0, ovector, OVECCOUNT);
 	else 
 	{
-    		int  workspace[WORCOUNT];
-		rc = pcre_dfa_exec(re, NULL, src, strlen(src), 0, PCRE_DFA_SHORTEST, ovector, OVECCOUNT, workspace, WORCOUNT);
+			int  workspace[WORCOUNT];
+			rc = pcre_dfa_exec(re, NULL, src, strlen(src), 0, PCRE_DFA_SHORTEST, ovector, OVECCOUNT, workspace, WORCOUNT);
 	}
+	GET_TIME(end);
+    double time_spend = TIME_DIFF_IN_MS(start, end);
+	total_time += time_spend;
+	last_update_time = time(NULL);
+	printf("pcre time spend %7.7f\n", total_time);
+
 	if (rc < 0) 
 	{
 		if (rc == PCRE_ERROR_NOMATCH)
@@ -126,6 +216,7 @@ UDFregex(int *ret, const char **src, const char **pattern)
 	int  erroffset; 
 	assert(ret != NULL && pattern != NULL && src != NULL);
 	re = pcre_compile(*pattern, 0, &error, &erroffset, NULL); 
+	reset_total_time();
 	return UDFregex_(ret, *src, re, 0);
 }
 
@@ -139,6 +230,7 @@ UDFdfaregex(int *ret, const char **src, const char **pattern)
 	int  erroffset; 
 	assert(ret != NULL && pattern != NULL && src != NULL);
 	re = pcre_compile(*pattern, 0, &error, &erroffset, NULL); 
+	reset_total_time();
 	return UDFregex_(ret, *src, re, 1);
 }
 
@@ -162,7 +254,7 @@ UDFBATregex_(BAT **ret, BAT *src, pcre* re, int dfa)
 	/* check tail type */
 	if (src->ttype != TYPE_str) {
 		throw(MAL, "batudf.regex",
-		      "tail-type of input BAT must be TYPE_str");
+			  "tail-type of input BAT must be TYPE_str");
 	}
 
 	/* allocate void-headed result BAT */
@@ -246,11 +338,13 @@ UDFBATcommentregex_(bat *ret, const bat *arg, const char **pattern, int dfa)
 
 char * 
 UDFBATregex(bat *ret, const bat *arg, const char **pattern) {
+	reset_total_time();
 	return UDFBATcommentregex_(ret, arg, pattern, 0);
 }
 
 char * 
 UDFBATdfaregex(bat *ret, const bat *arg, const char **pattern) {
+	reset_total_time();
 	return UDFBATcommentregex_(ret, arg, pattern, 1);
 }
 
@@ -280,7 +374,7 @@ UDFBATreverse_(BAT **ret, BAT *src)
 	/* check tail type */
 	if (src->ttype != TYPE_str) {
 		throw(MAL, "batudf.reverse",
-		      "tail-type of input BAT must be TYPE_str");
+			  "tail-type of input BAT must be TYPE_str");
 	}
 
 	/* allocate void-headed result BAT */
@@ -446,16 +540,16 @@ UDFBATfuse_(BAT **ret, const BAT *bone, const BAT *btwo)
 
 	/* check for aligned heads */
 	if (BATcount(bone) != BATcount(btwo) ||
-	    bone->hseqbase != btwo->hseqbase) {
+		bone->hseqbase != btwo->hseqbase) {
 		throw(MAL, "batudf.fuse",
-		      "heads of input BATs must be aligned");
+			  "heads of input BATs must be aligned");
 	}
 	n = BATcount(bone);
 
 	/* check tail types */
 	if (bone->ttype != btwo->ttype) {
 		throw(MAL, "batudf.fuse",
-		      "tails of input BATs must be identical");
+			  "tails of input BATs must be identical");
 	}
 
 	/* allocate result BAT */
@@ -476,11 +570,11 @@ UDFBATfuse_(BAT **ret, const BAT *bone, const BAT *btwo)
 #endif
 	default:
 		throw(MAL, "batudf.fuse",
-		      "tails of input BATs must be one of {bte, sht, int"
+			  "tails of input BATs must be one of {bte, sht, int"
 #ifdef HAVE_HGE
-		      ", lng"
+			  ", lng"
 #endif
-		      "}");
+			  "}");
 	}
 	if (bres == NULL)
 		throw(MAL, "batudf.fuse", SQLSTATE(HY001) MAL_MALLOC_FAIL);
@@ -508,11 +602,11 @@ UDFBATfuse_(BAT **ret, const BAT *bone, const BAT *btwo)
 	default:
 		BBPunfix(bres->batCacheid);
 		throw(MAL, "batudf.fuse",
-		      "tails of input BATs must be one of {bte, sht, int"
+			  "tails of input BATs must be one of {bte, sht, int"
 #ifdef HAVE_HGE
-		      ", lng"
+			  ", lng"
 #endif
-		      "}");
+			  "}");
 	}
 
 	if (msg != MAL_SUCCEED) {
@@ -528,12 +622,12 @@ UDFBATfuse_(BAT **ret, const BAT *bone, const BAT *btwo)
 		 * otherwise, we cannot tell.
 		 */
 		if (BATtordered(bone)
-		    && (BATtkey(bone) || two_tail_sorted_unsigned))
+			&& (BATtkey(bone) || two_tail_sorted_unsigned))
 			bres->tsorted = 1;
 		else
 			bres->tsorted = (BATcount(bres) <= 1);
 		if (BATtrevordered(bone)
-		    && (BATtkey(bone) || two_tail_revsorted_unsigned))
+			&& (BATtkey(bone) || two_tail_revsorted_unsigned))
 			bres->trevsorted = 1;
 		else
 			bres->trevsorted = (BATcount(bres) <= 1);

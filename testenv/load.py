@@ -12,7 +12,7 @@ def load(file_path):
 	except:
 		print "table not exist can not drop"
 	try:
-                cmd = "create table if not exists %s (name VARCHAR(256));" % table_name
+                cmd = "create table if not exists %s (name VARCHAR(1000));" % table_name
 		cursor.execute(cmd)
 		connection.commit()
 	except:
@@ -28,8 +28,10 @@ def load(file_path):
 		try:
 			cmd = """INSERT INTO %s VALUES ('%s');""" % (table_name, line)
 			cursor.execute(cmd)
-			if count % 1000 == 0:
+			if count % 10000 == 0:
 				connection.commit()
+                        if count % 10000 == 0:
+                                print count
 		except:
                         return
 			#print cmd

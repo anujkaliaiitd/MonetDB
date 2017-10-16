@@ -20,6 +20,11 @@ command dfaregex(src:str, pattern:str):int
 address UDFdfaregex
 comment "dfa regex function";
 
+module udf;
+command hyperscanregex(src:str, pattern:str):int
+address UDFhyperscanregex
+comment "Hyper scan regex function";
+
 # scalar MAL signatures
 module udf;
 command reverse(ra1:str):str

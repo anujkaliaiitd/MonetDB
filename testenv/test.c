@@ -41,16 +41,16 @@ int main(int argc, char *argv[]) {
   MapiHdl hdl = NULL; 
   char *name; 
   char *age; 
-  dbh = mapi_connect("localhost", 50000, "monetdb", "monetdb", "mal", "demo"); 
+  dbh = mapi_connect("localhost", 50000, "monetdb", "monetdb", "sql", "demo"); 
 
   if (mapi_error(dbh)) 
     die(dbh, hdl); 
-  
-  hdl = mapi_query(dbh, "rbase1 := bat.new(:str);"); 
-  hdl = mapi_query(dbh, "bat.append(rbase1, \"abc\");"); 
-  hdl = mapi_query(dbh, "bat.append(rbase1, \"cde\");"); 
-  hdl = mapi_query(dbh, "c := batudf.regex(rbase1, \"a+\");");
-  hdl = mapi_query(dbh, "io.print(c);"); 
+
+  //update(dbh, "CREATE TABLE IF NOT EXISTS emp (name VARCHAR(20), age INT)"); 
+  //update(dbh, "INSERT INTO emp VALUES ('John', 23)"); 
+  //update(dbh, "INSERT INTO emp VALUES ('Mary', 22)"); 
+  //hdl = query(dbh, "SELECT * FROM emp where name like '%Jo%'"); 
+  hdl = query(dbh, "select count(1) from regextest where regex(name, '^[A-Za-z]{3}\\;[0-9]{4}');");
 
   while (mapi_fetch_row(hdl)) { 
     name = mapi_fetch_field(hdl, 0); 

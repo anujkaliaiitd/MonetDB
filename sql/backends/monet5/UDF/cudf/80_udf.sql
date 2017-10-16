@@ -15,6 +15,9 @@ returns int external name udf.regex;
 create function dfaregex(pattern string, src string)
 returns int external name udf.dfaregex;
 
+create function hyperscanregex(pattern string, src string)
+returns int external name udf.hyperscanregex;
+
 -- Reverse a string
 create function reverse(src string)
 returns string external name udf.reverse;
