@@ -77,3 +77,15 @@ autom4te.cache/
 monetdb_config.h
 confdefs.*
 conftest.*
+clients/mapiclient/mclient
+clients/mapiclient/msqldump
+clients/mapiclient/stethoscope
+clients/mapiclient/tachograph
+clients/mapiclient/tomograph
+sql/server/sql_parser.tab.c
+sql/server/sql_parser.tab.h
+tools/merovingian/client/monetdb
+tools/merovingian/daemon/monetdbd
+tools/mserver/monet_version.c
+tools/mserver/mserver5
+tools/mserver/shutdowntest
