@@ -65,9 +65,13 @@ testing/
 *.log
 *.ac
 *.lst
+*.pc
+libtool
+configure
 clients/examples/
 buildtools/conf/
-*.pc
-configure
 testenv/string-generator/generate_input
-libtool
+testenv/test
+testenv/test_hs
+autom4te.cache/
+monetdb_config.h
