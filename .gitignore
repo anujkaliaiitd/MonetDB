@@ -75,3 +75,5 @@ testenv/test
 testenv/test_hs
 autom4te.cache/
 monetdb_config.h
+confdefs.*
+conftest.*
