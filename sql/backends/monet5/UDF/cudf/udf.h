@@ -40,6 +40,7 @@ udf_export char * UDFBATreverse(bat *ret, const bat *arg);
 udf_export char * UDFBATreverse1(bat *ret, const bat *arg);
 udf_export char * UDFBATregex(bat *ret, const bat *arg, const char **pattern);
 udf_export char * UDFBATdfaregex(bat *ret, const bat *arg, const char **pattern);
+udf_export char * UDFBAThyperscanregex(bat *ret, const bat *arg, const char **pattern);
 
 
 /* using C macro for convenient type-expansion */

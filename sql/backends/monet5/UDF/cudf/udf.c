@@ -63,6 +63,7 @@ UDFhyperscanregex_(int *ret, const char *src,  hs_database_t* database) {
 	int subject_len = strlen(src);
     	TIME_TYPE start = 0, end = 0;
         GET_TIME(start);
+
 	if (hs_scan(database, src, subject_len, 0, scratch, eventHandler, ret) != HS_SUCCESS) 	
 	{
 		hs_free_scratch(scratch);
@@ -93,6 +94,132 @@ UDFhyperscanregex(int *ret, const char **src, const char **pattern)
 	reset_total_time();
 	return UDFhyperscanregex_(ret, *src, database);
 }
+
+static char *
+UDFBAThyperscanregex_(BAT **ret, BAT *src, hs_database_t* database, hs_scratch_t * scratch)
+{
+	BATiter li;
+	BAT *bn = NULL;
+	BUN p = 0, q = 0;
+
+	/* assert calling sanity */
+	assert(ret != NULL);
+
+	/* handle NULL pointer */
+	if (src == NULL)
+		throw(MAL, "batudf.hyperscanregex",  SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
+
+	/* check tail type */
+	if (src->ttype != TYPE_str) {
+		throw(MAL, "batudf.hyperscanregex",
+			  "tail-type of input BAT must be TYPE_str");
+	}
+
+	/* allocate void-headed result BAT */
+	bn = COLnew(src->hseqbase, TYPE_int, BATcount(src), TRANSIENT);
+	if (bn == NULL) {
+		throw(MAL, "batudf.hyperscanregex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
+	}
+
+	/* create BAT iterator */
+	li = bat_iterator(src);
+
+	/* the core of the algorithm, expensive due to malloc/frees */
+	BATloop(src, p, q) {
+		int *tr = malloc(sizeof *tr);
+		char *err = NULL;
+
+		const char *t = (const char *) BUNtail(li, p);
+
+		/* revert tail value */
+    *tr = 0;
+    int subject_len = strlen(t);
+    TIME_TYPE start = 0, end = 0;
+    GET_TIME(start);
+    if (hs_scan(database, t, subject_len, 0, scratch, eventHandler, tr) != HS_SUCCESS)
+    {
+      hs_free_scratch(scratch);
+      hs_free_database(database);
+      throw(MAL, "udf.hyperscanregex", "Unable to scan input buffer\n");
+    }
+    GET_TIME(end);
+    total_time += TIME_DIFF_IN_MS(start, end);
+    last_update_time = time(NULL);
+    printf("hyperscan time spend %7.7f\n", total_time);
+    err = MAL_SUCCEED;
+
+		if (err != MAL_SUCCEED) {
+			/* error -> bail out */
+			BBPunfix(bn->batCacheid);
+			return err;
+		}
+
+		/* assert logical sanity */
+		assert(tr != NULL);
+
+		/* append reversed tail in result BAT */
+		if (BUNappend(bn, tr, FALSE) != GDK_SUCCEED) {
+			BBPunfix(bn->batCacheid);
+			throw(MAL, "batudf.hyperscanregex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
+		}
+
+		/* free memory allocated in UDFreverse_() */
+		free(tr);
+	}
+
+	*ret = bn;
+	return MAL_SUCCEED;
+}
+
+/* MAL wrapper */
+char *
+UDFBAThyperscanregex(bat *ret, const bat *arg, const char **pattern)
+{
+	reset_total_time();
+	BAT *res = NULL, *src = NULL;
+	char *msg = NULL;
+	pcre  *re = NULL;
+	const char *error; 
+	int  erroffset; 
+
+	/* assert calling sanity */
+  assert(ret != NULL && arg != NULL && pattern != NULL);
+
+	/* bat-id -> BAT-descriptor */
+	if ((src = BATdescriptor(*arg)) == NULL)
+		throw(MAL, "batudf.hyperscanregex",  SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
+
+  hs_database_t * database;
+  hs_compile_error_t * compile_err;
+
+  if (hs_compile(*pattern, HS_FLAG_SINGLEMATCH | HS_FLAG_PREFILTER, HS_MODE_BLOCK, NULL, &database, &compile_err) != HS_SUCCESS) {
+    hs_free_compile_error(compile_err);
+    throw(MAL, "udf.hyperscanregx", "Unable to compile pattern");
+  }
+
+  hs_scratch_t * scratch = NULL;
+  if (hs_alloc_scratch(database, &scratch) != HS_SUCCESS) {
+    hs_free_database(database);
+    throw(MAL, "udf.hyperscanregex", "Uable to allocate scratch space\n");
+  }
+
+	/* do the work */
+	msg = UDFBAThyperscanregex_(&res, src, database, scratch);
+
+  hs_free_scratch(scratch);
+  hs_free_database(database);
+
+	/* release input BAT-descriptor */
+	BBPunfix(src->batCacheid);
+
+	if (msg == MAL_SUCCEED) {
+		/* register result BAT in buffer pool */
+		BBPkeepref((*ret = res->batCacheid));
+	}
+
+	return msg;
+}
+
 
 /***********************************/
 
@@ -303,9 +430,8 @@ UDFBATregex_(BAT **ret, BAT *src, pcre* re, int dfa)
 }
 
 /* MAL wrapper */
-
 static char *
-UDFBATcommentregex_(bat *ret, const bat *arg, const char **pattern, int dfa)
+UDFBATcommenregex_(bat *ret, const bat *arg, const char **pattern, int dfa)
 {
 	BAT *res = NULL, *src = NULL;
 	char *msg = NULL;
@@ -339,13 +465,13 @@ UDFBATcommentregex_(bat *ret, const bat *arg, const char **pattern, int dfa)
 char * 
 UDFBATregex(bat *ret, const bat *arg, const char **pattern) {
 	reset_total_time();
-	return UDFBATcommentregex_(ret, arg, pattern, 0);
+	return UDFBATcommenregex_(ret, arg, pattern, 0);
 }
 
 char * 
 UDFBATdfaregex(bat *ret, const bat *arg, const char **pattern) {
 	reset_total_time();
-	return UDFBATcommentregex_(ret, arg, pattern, 1);
+	return UDFBATcommenregex_(ret, arg, pattern, 1);
 }
 
 /***********/

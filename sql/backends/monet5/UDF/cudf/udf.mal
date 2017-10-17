@@ -53,6 +53,12 @@ command regex(b:bat[:str], pattern:str):bat[:int]
 address UDFBATregex
 comment "NFA Regex a BAT of strings";
 
+
+module batudf;
+command hyperscanregex(b:bat[:str], pattern:str):bat[:int]
+address UDFBAThyperscanregex
+comment "Hyper Scan Regex a BAT of strings";
+
 module batudf;
 command dfaregex(b:bat[:str], pattern:str):bat[:int]
 address UDFBATdfaregex
