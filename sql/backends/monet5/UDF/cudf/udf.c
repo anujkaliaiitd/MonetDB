@@ -32,7 +32,7 @@
   (((double)(end - start)) * 1000 / CLOCKS_PER_SEC)
 
 #define MEASURE_TIME() ((rand() & 65535) == 65535)
-#define DEBUG true
+#define DEBUG false
 
 double total_time = 0;
 time_t last_update_time = 0;
@@ -45,8 +45,13 @@ void reset_total_time() {
   }
   time_t start = time(NULL);
   double interval = (double)(start - last_update_time);
-  if (interval > 1) {
+  if (interval > 2) {
+    if (DEBUG) {
+      printf("reset time with interval %7.7f\n", interval);
+    }
     total_time = 0;
+    acnt = 0;
+    last_update_time = start;
   }
 }
 
@@ -56,51 +61,6 @@ static int eventHandler(unsigned int id, unsigned long long from,
   int *cur = (int *)ctx;
   *cur = 1;
   return 0;
-}
-
-char *UDFhyperscanregex_(int *ret, const char *src, hs_database_t *database) {
-  hs_scratch_t *scratch = NULL;
-  if (hs_alloc_scratch(database, &scratch) != HS_SUCCESS) {
-    hs_free_database(database);
-    throw(MAL, "udf.hyperscanregex", "Unable to allocate scratch space\n");
-  }
-
-  *ret = 0;
-  int subject_len = strlen(src);
-  TIME_TYPE start = 0, end = 0;
-  int measure_time = DEBUG && MEASURE_TIME();
-  if (measure_time) GET_TIME(start);
-
-  if (hs_scan(database, src, subject_len, 0, scratch, eventHandler, ret) !=
-      HS_SUCCESS) {
-    hs_free_scratch(scratch);
-    hs_free_database(database);
-    throw(MAL, "udf.hyperscanregex", "Unable to scan input buffer\n");
-    return 0;
-  }
-  if (measure_time) {
-    GET_TIME(end);
-    double time_spend = TIME_DIFF_IN_MS(start, end);
-    total_time += time_spend;
-    printf("hyperscan time spend %7.7f\n", total_time);
-    last_update_time = time(NULL);
-  }
-  hs_free_scratch(scratch);
-  hs_free_database(database);
-  return MAL_SUCCEED;
-}
-
-char *UDFhyperscanregex(int *ret, const char **src, const char **pattern) {
-  hs_database_t *database;
-  hs_compile_error_t *compile_err;
-  assert(ret != NULL && pattern != NULL && src != NULL);
-  if (hs_compile(*pattern, HS_FLAG_SINGLEMATCH | HS_FLAG_PREFILTER,
-                 HS_MODE_BLOCK, NULL, &database, &compile_err) != HS_SUCCESS) {
-    hs_free_compile_error(compile_err);
-    throw(MAL, "udf.hyperscanregex", "Unable to compile pattern");
-  }
-  reset_total_time();
-  return UDFhyperscanregex_(ret, *src, database);
 }
 
 static char *UDFBAThyperscanregex_(BAT **ret, BAT *src, hs_database_t *database,
@@ -158,7 +118,7 @@ static char *UDFBAThyperscanregex_(BAT **ret, BAT *src, hs_database_t *database,
       GET_TIME(end);
       total_time += TIME_DIFF_IN_MS(start, end);
       last_update_time = time(NULL);
-      printf("hyperscan time spend %7.7f\n", total_time);
+      // printf("hyperscan time spend %7.7f\n", total_time);
     }
 
     err = MAL_SUCCEED;
@@ -236,11 +196,6 @@ char *UDFBAThyperscanregex(bat *ret, const bat *arg, const char **pattern) {
 
 /***********************************/
 
-str UDFtest(dbl *ret, dbl *_p1, dbl *_p2) {
-  *ret = *_p1 + *_p2;
-  return MAL_SUCCEED;
-}
-
 /* Reverse a string */
 
 /* actual implementation */
@@ -284,20 +239,11 @@ char *UDFreverse(char **ret, const char **arg) {
   return UDFreverse_(ret, *arg);
 }
 
-char *UDFreverse1(char **ret, const char **arg) {
-  /* assert calling sanity */
-  assert(ret != NULL && arg != NULL);
-
-  return UDFreverse_(ret, *arg);
-}
-
 char *UDFregex_(int *ret, const char *src, pcre *re, int dfa) {
-  // printf("pattern is %s, string is %s\n", pattern, src);
   int ovector[OVECCOUNT];
   int rc = -1;
 
   if (re == NULL) {
-    // printf("PCRE compilation failed at offset %d: %s\n", erroffset, error);
     throw(MAL, "udf.regex", "PCRE compilation failed");
   }
 
@@ -319,7 +265,7 @@ char *UDFregex_(int *ret, const char *src, pcre *re, int dfa) {
     double time_spend = TIME_DIFF_IN_MS(start, end);
     total_time += time_spend;
     last_update_time = time(NULL);
-    printf("pcre time spend %7.7f\n", total_time);
+    // printf("pcre time spend %7.7f\n", total_time);
   }
 
   if (rc < 0) {
@@ -335,35 +281,16 @@ char *UDFregex_(int *ret, const char *src, pcre *re, int dfa) {
   return MAL_SUCCEED;
 }
 
-char *UDFregex(int *ret, const char **src, const char **pattern) {
-  /* assert calling sanity */
-  pcre *re = NULL;
-  const char *error;
-  int erroffset;
-  assert(ret != NULL && pattern != NULL && src != NULL);
-  re = pcre_compile(*pattern, 0, &error, &erroffset, NULL);
-  reset_total_time();
-  return UDFregex_(ret, *src, re, 0);
-}
-
-char *UDFdfaregex(int *ret, const char **src, const char **pattern) {
-  /* assert calling sanity */
-  pcre *re = NULL;
-  const char *error;
-  int erroffset;
-  assert(ret != NULL && pattern != NULL && src != NULL);
-  re = pcre_compile(*pattern, 0, &error, &erroffset, NULL);
-  reset_total_time();
-  return UDFregex_(ret, *src, re, 1);
-}
-
 /************** ADD by me ***********/
 /* actual implementation */
 static char *UDFBATregex_(BAT **ret, BAT *src, pcre *re, int dfa) {
   BATiter li;
   BAT *bn = NULL;
   BUN p = 0, q = 0;
-  printf("count\n");
+  acnt++;
+  if (DEBUG) {
+    printf("count and total partition up to now %d\n", acnt);
+  }
 
   /* assert calling sanity */
   assert(ret != NULL);
@@ -413,8 +340,6 @@ static char *UDFBATregex_(BAT **ret, BAT *src, pcre *re, int dfa) {
       throw(MAL, "batudf.regex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
     }
   }
-
-  printf("*********Total compare count %d\n", cnt);
 
   /* free memory allocated in UDFreverse_() */
   free(tr);
@@ -534,31 +459,6 @@ static char *UDFBATreverse_(BAT **ret, BAT *src) {
 
 /* MAL wrapper */
 char *UDFBATreverse(bat *ret, const bat *arg) {
-  BAT *res = NULL, *src = NULL;
-  char *msg = NULL;
-
-  /* assert calling sanity */
-  assert(ret != NULL && arg != NULL);
-
-  /* bat-id -> BAT-descriptor */
-  if ((src = BATdescriptor(*arg)) == NULL)
-    throw(MAL, "batudf.reverse", SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
-
-  /* do the work */
-  msg = UDFBATreverse_(&res, src);
-
-  /* release input BAT-descriptor */
-  BBPunfix(src->batCacheid);
-
-  if (msg == MAL_SUCCEED) {
-    /* register result BAT in buffer pool */
-    BBPkeepref((*ret = res->batCacheid));
-  }
-
-  return msg;
-}
-
-char *UDFBATreverse1(bat *ret, const bat *arg) {
   BAT *res = NULL, *src = NULL;
   char *msg = NULL;
 

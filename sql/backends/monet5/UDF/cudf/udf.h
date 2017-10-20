@@ -29,15 +29,9 @@
 
 /* export MAL wrapper functions */
 
-udf_export str UDFtest(dbl *,dbl*,dbl*);
 udf_export char * UDFreverse(char **ret, const char **arg);
-udf_export char * UDFreverse1(char **ret, const char **arg);
-udf_export char * UDFdfaregex(int *ret, const char **src, const char **pattern);
-udf_export char * UDFregex(int *ret, const char **src, const char **pattern);
-udf_export char * UDFhyperscanregex(int *ret, const char **src, const char **pattern);
 
 udf_export char * UDFBATreverse(bat *ret, const bat *arg);
-udf_export char * UDFBATreverse1(bat *ret, const bat *arg);
 udf_export char * UDFBATregex(bat *ret, const bat *arg, const char **pattern);
 udf_export char * UDFBATdfaregex(bat *ret, const bat *arg, const char **pattern);
 udf_export char * UDFBAThyperscanregex(bat *ret, const bat *arg, const char **pattern);
