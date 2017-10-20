@@ -58,12 +58,10 @@ def main(argv):
     path = "string-generator/" + file_name
     file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
     print "load file %s to regex" % file_path
-    #load(file_path)
+    load(file_path)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
 
-#file_path =  os.path.join(os.path.dirname(os.path.abspath(__file__)), "string-generator/generate.out")
-#load(file_path)
 
 
