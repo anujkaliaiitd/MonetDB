@@ -8,4 +8,15 @@ python parse_result.py
 
 #This code will extract information from result.csv to parse.txt
 
+2. How to load data to MonetDB:
+python load.py -f generate.out
+python load.py  #the default file is generate.out
+
+3. How to generate test record:
+# If there is no binary file of generate_input, first you need to compile it:
+$ cd string-generator
+$ make
+$ ./generate_input --input-file dataJun7-2016-clean.csv --string-len 60 --num-string 100000
+
+
 

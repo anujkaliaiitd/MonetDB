@@ -1,6 +1,9 @@
 import pymonetdb
 import os
+import sys
+import getopt
 table_name = "regextest"
+file_name = 'generate.out'
 
 def load(file_path):
 	connection = pymonetdb.connect(username="monetdb", password="monetdb", hostname="localhost", database="demo")
@@ -40,7 +43,27 @@ def load(file_path):
 	cursor.execute(cmd)
 	print cursor.fetchone()
 
-file_path =  os.path.join(os.path.dirname(os.path.abspath(__file__)), "string-generator/generate.out")
-load(file_path)
+def main(argv):
+    file_name = 'generate.out'
+    try:                                
+        opts, args = getopt.getopt(argv, "hf:", ["help", "file="])
+    except getopt.GetoptError:          
+        sys.exit(2)                     
+    for opt, arg in opts:                
+        if opt in ("-h", "--help"):      
+            print "python load.py -f [yourfile]"                    
+            sys.exit()                  
+        elif opt in ("-f", "--file"): 
+            file_name = arg               
+    path = "string-generator/" + file_name
+    file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
+    print "load file %s to regex" % file_path
+    #load(file_path)
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
+
+#file_path =  os.path.join(os.path.dirname(os.path.abspath(__file__)), "string-generator/generate.out")
+#load(file_path)
 
 
