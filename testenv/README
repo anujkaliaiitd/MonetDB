@@ -1,0 +1,11 @@
+1. How to test all of the sql:
+
+# If you want to test time of all the commands:
+rlwrap mclient -u monetdb --interactive=ms -e < test.sql > result.csv
+
+#The above result will generate result to results.csv
+python parse_result.py
+
+#This code will extract information from result.csv to parse.txt
+
+

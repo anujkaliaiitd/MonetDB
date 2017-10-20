@@ -1,0 +1,36 @@
+Result for 10 Million records
+--------------------
+time for query 1
+--------------------
+match  1812.326ms 
+regex  693.876ms 
+dfaregex  682.984ms 
+hyperscanregex  722.297ms 
+--------------------
+time for query 2
+--------------------
+match  1958.570ms 
+regex  748.565ms 
+dfaregex  753.024ms 
+hyperscanregex  735.115ms 
+--------------------
+time for query 3
+--------------------
+match  2240.474ms 
+regex  1242.175ms 
+dfaregex  1537.768ms 
+hyperscanregex  720.602ms 
+--------------------
+time for query 4
+--------------------
+match  2243.031ms 
+regex  1007.449ms 
+dfaregex  1361.929ms 
+hyperscanregex  709.793ms 
+--------------------
+time for query 5
+--------------------
+match  2357.410ms 
+regex  832.994ms 
+dfaregex  768.606ms 
+hyperscanregex  837.795ms 
