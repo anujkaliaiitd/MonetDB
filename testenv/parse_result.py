@@ -7,7 +7,13 @@ def parse_cmd(line):
     b = re.search(r'\bwhere \w+\b',line)
     if b == None:
         return
-    return b.group(0)[6:]
+    t = b.group(0)[6:]
+    if t.find('regex') == -1:
+        if (t == "match"):
+            return t
+        else:
+            return "like"
+    return t
 
 def parse_time(line):
     b = re.search(r'\btuple ?\(\d+\.\d+\w+',line)
@@ -22,7 +28,7 @@ def parse_result(file_name, to_file_name):
     for line in f:
         cmd = parse_cmd(line)
         time = parse_time(line)
-        if cmd != None and cmd == "match":
+        if cmd != None and (cmd == "match" or cmd == "like"):
             cnt +=1
             tmp = "--------------------\n"
             tmp += "time for query " + str(cnt) + "\n" 

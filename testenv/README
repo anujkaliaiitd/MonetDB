@@ -9,14 +9,15 @@ python parse_result.py
 #This code will extract information from result.csv to parse.txt
 
 2. How to load data to MonetDB:
-python load.py -f generate.out
-python load.py  #the default file is generate.out
+$ mclient -u monetdb
+$ create table regextest (id INT, name VARCHAR(1000));
+$ COPY INTO regextest FROM '/home/xzhang3/pattern_match_datasets/10M.txt' USING DELIMITERS '|','\n';
 
 3. How to generate test record:
 # If there is no binary file of generate_input, first you need to compile it:
 $ cd string-generator
 $ make
-$ ./generate_input --input-file dataJun7-2016-clean.csv --string-len 60 --num-string 100000
+$ ./generate_input --input-file dataJun7-2016-clean.csv --string-len 64 --num-string 10000000 --selectivity 0.2
 
 
 

@@ -1,0 +1,6 @@
+With 10 million records:
+       MonetDB's default match      FPGA                UDF (pcre)            UDF (hyperscan)
+Q1     55 ms                        130 ms
+Q2     1700 ms                      130 ms
+Q3     4000 ms                      130 ms
+Q4     1100 ms                      130 ms

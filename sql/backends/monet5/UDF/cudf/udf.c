@@ -23,16 +23,23 @@
 #include <time.h>
 
 #define COUNT_PARTITIONS true
-// pthread_lock
-
-#define TIME_TYPE clock_t
-#define GET_TIME(res) \
-  { res = clock(); }
-#define TIME_DIFF_IN_MS(begin, end) \
-  (((double)(end - start)) * 1000 / CLOCKS_PER_SEC)
 
 #define MEASURE_TIME() ((rand() & 65535) == 65535)
 #define DEBUG false
+
+void get_time(struct timespec *start) {
+  if (!DEBUG) return;
+  clock_gettime(CLOCK_REALTIME, start);
+}
+
+void time_diff(struct timespec start, char *cmd) {
+  struct timespec end;
+  get_time(&end);
+  if (!DEBUG) return;
+  size_t tot_ns =
+      (end.tv_sec - start.tv_sec) * 1000000000 + (end.tv_nsec - start.tv_nsec);
+  printf("%s Overhead: Time per measurement = %.2f ns\n", cmd, (double)tot_ns);
+}
 
 double total_time = 0;
 time_t last_update_time = 0;
@@ -68,45 +75,48 @@ static char *UDFBAThyperscanregex_(BAT **ret, BAT *src, hs_database_t *database,
   BATiter li;
   BAT *bn = NULL;
   BUN p = 0, q = 0;
+  struct timespec fast_start;
 
-  /* assert calling sanity */
+  // assert calling sanity
   assert(ret != NULL);
 
-  /* handle NULL pointer */
+  // handle NULL pointer
   if (src == NULL)
     throw(MAL, "batudf.hyperscanregex", SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
 
-  /* check tail type */
+  // check tail type
   if (src->ttype != TYPE_str) {
     throw(MAL, "batudf.hyperscanregex",
           "tail-type of input BAT must be TYPE_str");
   }
 
-  /* allocate void-headed result BAT */
+  // allocate void-headed result BAT
   bn = COLnew(src->hseqbase, TYPE_int, BATcount(src), TRANSIENT);
   if (bn == NULL) {
     throw(MAL, "batudf.hyperscanregex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
   }
 
-  /* create BAT iterator */
+  // create BAT iterator
   li = bat_iterator(src);
+  get_time(&fast_start);
+  int *tr = GDKmalloc(sizeof *tr);
+  time_diff(fast_start, "GDKmalloc");
 
-  int *tr = malloc(sizeof *tr);
-  /* the core of the algorithm, expensive due to malloc/frees */
+  // the core of the algorithm, expensive due to malloc/frees
+  // get_time(&fast_start);
   BATloop(src, p, q) {
-    char *err = NULL;
-    const char *t = (const char *)BUNtail(li, p);
-
-    /* revert tail value */
-    *tr = 0;
-    int subject_len = strlen(t);
-    TIME_TYPE start = 0, end = 0;
-
     int measure_time = DEBUG && MEASURE_TIME();
-    if (measure_time) {
-      GET_TIME(start);
-    }
+    char *err = NULL;
+    if (measure_time) get_time(&fast_start);
+    const char *t = (const char *)BUNtail(li, p);
+    if (measure_time) time_diff(fast_start, "BUNtail");
 
+    // revert tail value
+    *tr = 0;
+    if (measure_time) get_time(&fast_start);
+    int subject_len = strlen(t);
+    if (measure_time) time_diff(fast_start, "strlen");
+    if (measure_time) get_time(&fast_start);
     // matching a 64-byte text against pattern: 200 cycles. 60 ns.
     if (hs_scan(database, t, subject_len, 0, scratch, eventHandler, tr) !=
         HS_SUCCESS) {
@@ -114,34 +124,37 @@ static char *UDFBAThyperscanregex_(BAT **ret, BAT *src, hs_database_t *database,
       hs_free_database(database);
       throw(MAL, "udf.hyperscanregex", "Unable to scan input buffer\n");
     }
-    if (measure_time) {
-      GET_TIME(end);
-      total_time += TIME_DIFF_IN_MS(start, end);
-      last_update_time = time(NULL);
-      // printf("hyperscan time spend %7.7f\n", total_time);
-    }
+    if (measure_time) time_diff(fast_start, "hs_scan");
 
+    if (measure_time) get_time(&fast_start);
     err = MAL_SUCCEED;
     if (err != MAL_SUCCEED) {
-      /* error -> bail out */
       BBPunfix(bn->batCacheid);
       return err;
     }
+    if (measure_time) time_diff(fast_start, "BBPUnfix");
 
-    /* assert logical sanity */
+    // assert logical sanity
     assert(tr != NULL);
 
-    /* append reversed tail in result BAT */
+    if (measure_time) get_time(&fast_start);
+    // append reversed tail in result BAT
     if (BUNappend(bn, tr, FALSE) != GDK_SUCCEED) {
       BBPunfix(bn->batCacheid);
       throw(MAL, "batudf.hyperscanregex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
     }
+    if (measure_time) time_diff(fast_start, "BUNappend");
   }
 
-  /* free memory allocated in UDFreverse_() */
-  free(tr);
-
+  time_diff(fast_start, "LOOP");
+  get_time(&fast_start);
+  GDKfree(tr);
+  time_diff(fast_start, "free");
   *ret = bn;
+
+  if (DEBUG) {
+    last_update_time = time(NULL);
+  }
   return MAL_SUCCEED;
 }
 
@@ -153,6 +166,11 @@ char *UDFBAThyperscanregex(bat *ret, const bat *arg, const char **pattern) {
   pcre *re = NULL;
   const char *error;
   int erroffset;
+
+  // Check size of BAT
+  // Find time taken in this function - don't use globals
+  // Time taken when no scan is done (just remove all hyperscan code)
+  // Clean up this file - remove reverse(), fuse()
 
   /* assert calling sanity */
   assert(ret != NULL && arg != NULL && pattern != NULL);
@@ -247,10 +265,7 @@ char *UDFregex_(int *ret, const char *src, pcre *re, int dfa) {
     throw(MAL, "udf.regex", "PCRE compilation failed");
   }
 
-  TIME_TYPE start = 0, end = 0;
   int measure_time = DEBUG && MEASURE_TIME();
-
-  if (measure_time) GET_TIME(start);
 
   if (dfa == 0)
     rc = pcre_exec(re, NULL, src, strlen(src), 0, 0, ovector, OVECCOUNT);
@@ -261,11 +276,7 @@ char *UDFregex_(int *ret, const char *src, pcre *re, int dfa) {
   }
 
   if (measure_time) {
-    GET_TIME(end);
-    double time_spend = TIME_DIFF_IN_MS(start, end);
-    total_time += time_spend;
     last_update_time = time(NULL);
-    // printf("pcre time spend %7.7f\n", total_time);
   }
 
   if (rc < 0) {

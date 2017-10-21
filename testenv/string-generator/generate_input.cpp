@@ -196,8 +196,7 @@ void insert_hits_simple(std::vector<std::string>& strings,
 
 
 int main(int argc, char **argv){
-
-   const char* regex_pattern[3] = {"Strasse", "Alan.*Turing.*Cheshire", "(Strasse|Str.).*(8\\d{4})"};
+   //const char* regex_pattern[3] = {"Strasse", "Alan.*Turing.*Cheshire", "(Strasse|Str.).*(8\\d{4})"};
    po::options_description desc("Allowed options");
 
    desc.add_options()
@@ -298,6 +297,7 @@ int main(int argc, char **argv){
    {
       // Old verions
       outputFile << oid << "|" << *it << std::endl;
+      //outputFile << *it << std::endl;
       // Added for Muhsen, price, quantity , revenue
       /*int price = randdist(generator);
       int quantity = poisdist(generator);
