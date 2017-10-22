@@ -28,25 +28,8 @@
 #endif
 
 /* export MAL wrapper functions */
-
-udf_export char * UDFreverse(char **ret, const char **arg);
-
-udf_export char * UDFBATreverse(bat *ret, const bat *arg);
 udf_export char * UDFBATregex(bat *ret, const bat *arg, const char **pattern);
 udf_export char * UDFBATdfaregex(bat *ret, const bat *arg, const char **pattern);
 udf_export char * UDFBAThyperscanregex(bat *ret, const bat *arg, const char **pattern);
-
-
-/* using C macro for convenient type-expansion */
-#define UDFfuse_scalar_decl(in,out) \
-        udf_export char * UDFfuse_##in##_##out(out *ret, const in *one, const in *two)
-UDFfuse_scalar_decl(bte, sht);
-UDFfuse_scalar_decl(sht, int);
-UDFfuse_scalar_decl(int, lng);
-#ifdef HAVE_HGE
-UDFfuse_scalar_decl(lng, hge);
-#endif
-
-udf_export char * UDFBATfuse(bat *ret, const bat *one, const bat *two);
 
 #endif /* _SQL_UDF_H_ */

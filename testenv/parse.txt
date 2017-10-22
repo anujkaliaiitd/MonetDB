@@ -1,36 +1,28 @@
-Result for 10 Million records
 --------------------
 time for query 1
 --------------------
-match  1812.326ms 
-regex  693.876ms 
-dfaregex  682.984ms 
-hyperscanregex  722.297ms 
+like  110.990ms 
+regex  386.492ms 
+dfaregex  381.604ms 
+hyperscanregex  245.264ms 
 --------------------
 time for query 2
 --------------------
-match  1958.570ms 
-regex  748.565ms 
-dfaregex  753.024ms 
-hyperscanregex  735.115ms 
+match  2193.251ms 
+regex  593.386ms 
+dfaregex  433.892ms 
+hyperscanregex  371.935ms 
 --------------------
 time for query 3
 --------------------
-match  2240.474ms 
-regex  1242.175ms 
-dfaregex  1537.768ms 
-hyperscanregex  720.602ms 
+match  3735.127ms 
+regex  2787.311ms 
+dfaregex  3122.869ms 
+hyperscanregex  311.925ms 
 --------------------
 time for query 4
 --------------------
-match  2243.031ms 
-regex  1007.449ms 
-dfaregex  1361.929ms 
-hyperscanregex  709.793ms 
---------------------
-time for query 5
---------------------
-match  2357.410ms 
-regex  832.994ms 
-dfaregex  768.606ms 
-hyperscanregex  837.795ms 
+match  2913.340ms 
+regex  364.233ms 
+dfaregex  261.395ms 
+hyperscanregex  268.441ms 
