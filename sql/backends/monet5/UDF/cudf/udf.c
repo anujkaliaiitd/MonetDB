@@ -89,19 +89,23 @@ static char *UDFBAThyperscanregex_(BAT **ret, BAT *src, hs_database_t *database,
   }
 
   // allocate void-headed result BAT
-  bn = COLnew(src->hseqbase, TYPE_int, BATcount(src), TRANSIENT);
+  int len = BATcount(src);
+  
+  bn = COLnew(src->hseqbase, TYPE_int, len, TRANSIENT);
   if (bn == NULL) {
     throw(MAL, "batudf.hyperscanregex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
   }
-
   // create BAT iterator
   li = bat_iterator(src);
   get_time(&fast_start);
   int *tr = GDKmalloc(sizeof *tr);
   time_diff(fast_start, "GDKmalloc");
+  int *res = NULL;
+	res = (int*) Tloc(bn, 0);
+
+  int i = 0;
 
   // the core of the algorithm, expensive due to malloc/frees
-  // get_time(&fast_start);
   BATloop(src, p, q) {
     int measure_time = DEBUG && MEASURE_TIME();
     char *err = NULL;
@@ -137,12 +141,23 @@ static char *UDFBAThyperscanregex_(BAT **ret, BAT *src, hs_database_t *database,
 
     if (measure_time) get_time(&fast_start);
     // append reversed tail in result BAT
+    res[i++] = *tr;
+    /*
     if (BUNappend(bn, tr, FALSE) != GDK_SUCCEED) {
       BBPunfix(bn->batCacheid);
       throw(MAL, "batudf.hyperscanregex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
     }
+    */
     if (measure_time) time_diff(fast_start, "BUNappend");
   }
+
+  BATsetcount(bn, len);
+	bn->tsorted = FALSE;
+	bn->trevsorted = FALSE;
+	bn->tdense = FALSE;
+	BATkey(bn, FALSE);
+
+  //bn->batDirty = 1;
 
   time_diff(fast_start, "LOOP");
   get_time(&fast_start);
@@ -280,7 +295,6 @@ static char *UDFBATregex_(BAT **ret, BAT *src, pcre *re, int dfa) {
 
   /* create BAT iterator */
   li = bat_iterator(src);
-
   int *tr = malloc(sizeof *tr);
   int cnt = 0;
   /* the core of the algorithm, expensive due to malloc/frees */

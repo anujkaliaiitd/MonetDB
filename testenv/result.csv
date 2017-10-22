@@ -1,0 +1,112 @@
+select count(*) from regextest where name like '%Strasse%';
++---------+
+| L3      |
++=========+
+| 2000261 |
++---------+
+1 tuple (97.191ms)
+select count(*) from regextest where regex(name, 'Strasse');
++---------+
+| L3      |
++=========+
+| 2000261 |
++---------+
+1 tuple (356.827ms)
+select count(*) from regextest where dfaregex(name, 'Strasse');
++---------+
+| L3      |
++=========+
+| 2000261 |
++---------+
+1 tuple (324.042ms)
+select count(*) from regextest where hyperscanregex(name, 'Strasse');
++---------+
+| L3      |
++=========+
+| 2000261 |
++---------+
+1 tuple (150.135ms)
+select count(*) from regextest where match(name, '(Strasse|Str\.).*(8[0-9]{4})');
++-------+
+| L3    |
++=======+
+| 87835 |
++-------+
+1 tuple (2789.667ms)
+select count(*) from regextest where regex(name, '(Strasse|Str\.).*(8[0-9]{4})');
++-------+
+| L3    |
++=======+
+| 87835 |
++-------+
+1 tuple (579.786ms)
+select count(*) from regextest where dfaregex(name, '(Strasse|Str\.).*(8[0-9]{4})');
++-------+
+| L3    |
++=======+
+| 87835 |
++-------+
+1 tuple (465.922ms)
+select count(*) from regextest where hyperscanregex(name, '(Strasse|Str\.).*(8[0-9]{4})');
++-------+
+| L3    |
++=======+
+| 87835 |
++-------+
+1 tuple (208.370ms)
+select count(*) from regextest where match(name, '[0-9]+(USD|EUR|GBP)');
++------+
+| L3   |
++======+
+|    0 |
++------+
+1 tuple (3563.843ms)
+select count(*) from regextest where regex(name, '[0-9]+(USD|EUR|GBP)');
++------+
+| L3   |
++======+
+|    0 |
++------+
+1 tuple (2335.514ms)
+select count(*) from regextest where dfaregex(name, '[0-9]+(USD|EUR|GBP)');
++------+
+| L3   |
++======+
+|    0 |
++------+
+1 tuple (2956.176ms)
+select count(*) from regextest where hyperscanregex(name, '[0-9]+(USD|EUR|GBP)');
++------+
+| L3   |
++======+
+|    0 |
++------+
+1 tuple (206.826ms)
+select count(*) from regextest where match(name, '[A-Za-z]{3}\:[0-9]{4}');
++------+
+| L3   |
++======+
+|    0 |
++------+
+1 tuple (2602.549ms)
+select count(*) from regextest where regex(name, '[A-Za-z]{3}\:[0-9]{4}');
++------+
+| L3   |
++======+
+|    0 |
++------+
+1 tuple (377.869ms)
+select count(*) from regextest where dfaregex(name, '[A-Za-z]{3}\:[0-9]{4}');
++------+
+| L3   |
++======+
+|    0 |
++------+
+1 tuple (281.188ms)
+select count(*) from regextest where hyperscanregex(name, '[A-Za-z]{3}\:[0-9]{4}');
++------+
+| L3   |
++======+
+|    0 |
++------+
+1 tuple (164.613ms)
