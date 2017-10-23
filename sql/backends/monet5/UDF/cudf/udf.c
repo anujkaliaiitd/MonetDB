@@ -42,7 +42,6 @@ void time_diff(struct timespec start, char *cmd) {
   printf("%s Overhead: Time per measurement = %.2f ns\n", cmd, (double)tot_ns);
 }
 
-
 void reset_total_time() {
   if (last_update_time == 0) {
     last_update_time = time(NULL);
@@ -90,7 +89,7 @@ static char *UDFBAThyperscanregex_(BAT **ret, BAT *src, hs_database_t *database,
 
   // allocate void-headed result BAT
   int len = BATcount(src);
-  
+
   bn = COLnew(src->hseqbase, TYPE_int, len, TRANSIENT);
   if (bn == NULL) {
     throw(MAL, "batudf.hyperscanregex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
@@ -101,63 +100,33 @@ static char *UDFBAThyperscanregex_(BAT **ret, BAT *src, hs_database_t *database,
   int *tr = GDKmalloc(sizeof *tr);
   time_diff(fast_start, "GDKmalloc");
   int *res = NULL;
-	res = (int*) Tloc(bn, 0);
-
+  res = (int *)Tloc(bn, 0);
+  str *records = NULL;
+  records = (str *)Tloc(src, 0);
   int i = 0;
 
-  // the core of the algorithm, expensive due to malloc/frees
-  BATloop(src, p, q) {
-    int measure_time = DEBUG && MEASURE_TIME();
-    char *err = NULL;
-    if (measure_time) get_time(&fast_start);
-    const char *t = (const char *)BUNtail(li, p);
-    if (measure_time) time_diff(fast_start, "BUNtail");
-
-    // revert tail value
+  void *address_start = Tbase(src);
+  void *step_address = src->theap.base;
+  for (i = 0; i < len; i++) {
     *tr = 0;
-    if (measure_time) get_time(&fast_start);
+    str t =
+        (char *)(address_start + (var_t)((unsigned int *)(step_address))[i]);
     int subject_len = strlen(t);
-    if (measure_time) time_diff(fast_start, "strlen");
-    if (measure_time) get_time(&fast_start);
-    // matching a 64-byte text against pattern: 200 cycles. 60 ns.
+
     if (hs_scan(database, t, subject_len, 0, scratch, eventHandler, tr) !=
         HS_SUCCESS) {
       hs_free_scratch(scratch);
       hs_free_database(database);
       throw(MAL, "udf.hyperscanregex", "Unable to scan input buffer\n");
     }
-    if (measure_time) time_diff(fast_start, "hs_scan");
-
-    if (measure_time) get_time(&fast_start);
-    err = MAL_SUCCEED;
-    if (err != MAL_SUCCEED) {
-      BBPunfix(bn->batCacheid);
-      return err;
-    }
-    if (measure_time) time_diff(fast_start, "BBPUnfix");
-
-    // assert logical sanity
-    assert(tr != NULL);
-
-    if (measure_time) get_time(&fast_start);
-    // append reversed tail in result BAT
-    res[i++] = *tr;
-    /*
-    if (BUNappend(bn, tr, FALSE) != GDK_SUCCEED) {
-      BBPunfix(bn->batCacheid);
-      throw(MAL, "batudf.hyperscanregex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
-    }
-    */
-    if (measure_time) time_diff(fast_start, "BUNappend");
+    res[i] = *tr;
   }
 
   BATsetcount(bn, len);
-	bn->tsorted = FALSE;
-	bn->trevsorted = FALSE;
-	bn->tdense = FALSE;
-	BATkey(bn, FALSE);
-
-  //bn->batDirty = 1;
+  bn->tsorted = FALSE;
+  bn->trevsorted = FALSE;
+  // bn->tdense = FALSE;
+  // BATkey(bn, FALSE);
 
   time_diff(fast_start, "LOOP");
   get_time(&fast_start);
@@ -371,4 +340,3 @@ char *UDFBATdfaregex(bat *ret, const bat *arg, const char **pattern) {
   reset_total_time();
   return UDFBATcommenregex_(ret, arg, pattern, 1);
 }
-
