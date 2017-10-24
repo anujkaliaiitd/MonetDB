@@ -19,5 +19,7 @@ $ cd string-generator
 $ make
 $ ./generate_input --input-file dataJun7-2016-clean.csv --string-len 64 --num-string 10000000 --selectivity 0.2
 
-
+4. How to improve the performance of hyperscan:
+  1) force the hyperscan running on one cpu
+  $ sudo numactl --cpunodebind=0 /usr/local/bin/mserver5 --set gdk_nr_threads=10
 

@@ -1,0 +1,28 @@
+--------------------
+time for query 1
+--------------------
+like  112.080ms 
+regex  328.646ms 
+dfaregex  306.903ms 
+hyperscanregex  125.614ms 
+--------------------
+time for query 2
+--------------------
+match  1852.189ms 
+regex  520.592ms 
+dfaregex  417.666ms 
+hyperscanregex  199.285ms 
+--------------------
+time for query 3
+--------------------
+match  3410.912ms 
+regex  2236.232ms 
+dfaregex  3005.311ms 
+hyperscanregex  169.934ms 
+--------------------
+time for query 4
+--------------------
+match  1353.063ms 
+regex  228.206ms 
+dfaregex  227.056ms 
+hyperscanregex  152.903ms 
