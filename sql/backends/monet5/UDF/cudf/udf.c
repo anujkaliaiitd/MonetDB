@@ -69,9 +69,7 @@ static int eventHandler(unsigned int id, unsigned long long from,
 
 static char *UDFBAThyperscanregex_(BAT **ret, BAT *src, hs_database_t *database,
                                    hs_scratch_t *scratch) {
-  BATiter li;
   BAT *bn = NULL;
-  BUN p = 0, q = 0;
   struct timespec fast_start;
 
   // assert calling sanity
@@ -95,40 +93,47 @@ static char *UDFBAThyperscanregex_(BAT **ret, BAT *src, hs_database_t *database,
     throw(MAL, "batudf.hyperscanregex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
   }
   // create BAT iterator
-  li = bat_iterator(src);
   get_time(&fast_start);
   int *tr = GDKmalloc(sizeof *tr);
   time_diff(fast_start, "GDKmalloc");
   int *res = NULL;
   res = (int *)Tloc(bn, 0);
-  str *records = NULL;
-  records = (str *)Tloc(src, 0);
   int i = 0;
 
   void *address_start = Tbase(src);
   void *step_address = src->theap.base;
+  const void *rose;
+  hs_get_bytecode_my(database, &rose);
+
   for (i = 0; i < len; i++) {
     *tr = 0;
+    int measure = DEBUG && MEASURE_TIME();
+    if (measure) get_time(&fast_start);
     str t =
         (char *)(address_start + (var_t)((unsigned int *)(step_address))[i]);
-    int subject_len = strlen(t);
+    if (measure) time_diff(fast_start, "get next record");
 
-    if (hs_scan(database, t, subject_len, 0, scratch, eventHandler, tr) !=
-        HS_SUCCESS) {
+    if (measure) get_time(&fast_start);
+    int subject_len = strlen(t);
+    if (measure) time_diff(fast_start, "strlen time");
+
+    if (measure) get_time(&fast_start);
+    if (hs_scan_my(database, t, subject_len, 0, scratch, eventHandler, tr,
+                   rose) != HS_SUCCESS) {
       hs_free_scratch(scratch);
       hs_free_database(database);
       throw(MAL, "udf.hyperscanregex", "Unable to scan input buffer\n");
     }
+    if (measure) time_diff(fast_start, "hs_scan time");
     res[i] = *tr;
   }
 
+  get_time(&fast_start);
   BATsetcount(bn, len);
+  time_diff(fast_start, "BATsetcount time");
   bn->tsorted = FALSE;
   bn->trevsorted = FALSE;
-  // bn->tdense = FALSE;
-  // BATkey(bn, FALSE);
 
-  time_diff(fast_start, "LOOP");
   get_time(&fast_start);
   GDKfree(tr);
   time_diff(fast_start, "free");
