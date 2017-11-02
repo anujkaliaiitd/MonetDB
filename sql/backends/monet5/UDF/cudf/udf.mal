@@ -19,3 +19,12 @@ command dfaregex(b:bat[:str], pattern:str):bat[:int]
 address UDFBATdfaregex
 comment "DFA Regex a BAT of strings";
 
+module batudf;
+command myregex(b:bat[:str], pattern:str):bat[:int]
+address UDFBATmyregex
+comment "my Regex a BAT of strings";
+
+#module udf;
+#command myregex(pattern:str, src:str):int
+#address UDFmyregex
+#comment "my regex function";

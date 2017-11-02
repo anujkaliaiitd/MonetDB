@@ -6,13 +6,13 @@
 
 -- add function signatures to SQL catalog
 
-create function regex(pattern string, src string)
+create function regex(src string, pattern string)
 returns int external name udf.regex;
 
-create function dfaregex(pattern string, src string)
+create function dfaregex(src string, pattern string)
 returns int external name udf.dfaregex;
 
-create function hyperscanregex(pattern string, src string)
+create function hyperscanregex(src string, pattern string)
 returns int external name udf.hyperscanregex;
 
 create function pcre_match(s string, pattern string)
@@ -20,3 +20,6 @@ returns BOOLEAN external name pcre.match;
 
 create function pcre_imatch(s string, pattern string)
 returns BOOLEAN external name pcre.imatch;
+
+create function myregex(pattern string, src string)
+returns int external name udf.myregex;

@@ -23,3 +23,8 @@ $ ./generate_input --input-file dataJun7-2016-clean.csv --string-len 64 --num-st
   1) force the hyperscan running on one cpu
   $ sudo numactl --cpunodebind=0 /usr/local/bin/mserver5 --set gdk_nr_threads=10
 
+5. How to make regex run:
+  go to regex folder and run make
+  $ sudo cp libregex.so /usr/local/lib/
+  $ export LIBS="-lhs -lre2 -lregex"
+

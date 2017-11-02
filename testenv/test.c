@@ -1,6 +1,8 @@
 #include <mapi.h> 
 #include <stdio.h> 
 #include <stdlib.h> 
+#include <string.h>
+#include <assert.h>
 
 void die(Mapi dbh, MapiHdl hdl) { 
   if (hdl != NULL) { 
@@ -62,3 +64,4 @@ int main(int argc, char *argv[]) {
   mapi_destroy(dbh); 
   return(0); 
 } 
+

@@ -15,6 +15,7 @@
 #include <stdatomic.h>
 #include <math.h>
 #include <time.h>
+#include <string.h>
 
 #define OVECCOUNT 30
 #define WORCOUNT 100
@@ -27,6 +28,7 @@
 double total_time = 0;
 time_t last_update_time = 0;
 atomic_int acnt;
+
 
 void get_time(struct timespec *start) {
   if (!DEBUG) return;
@@ -69,7 +71,9 @@ static int eventHandler(unsigned int id, unsigned long long from,
 
 static char *UDFBAThyperscanregex_(BAT **ret, BAT *src, hs_database_t *database,
                                    hs_scratch_t *scratch) {
+  BATiter li;
   BAT *bn = NULL;
+  BUN p = 0, q = 0;
   struct timespec fast_start;
 
   // assert calling sanity
@@ -87,53 +91,76 @@ static char *UDFBAThyperscanregex_(BAT **ret, BAT *src, hs_database_t *database,
 
   // allocate void-headed result BAT
   int len = BATcount(src);
-
+  
   bn = COLnew(src->hseqbase, TYPE_int, len, TRANSIENT);
   if (bn == NULL) {
     throw(MAL, "batudf.hyperscanregex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
   }
   // create BAT iterator
+  li = bat_iterator(src);
   get_time(&fast_start);
   int *tr = GDKmalloc(sizeof *tr);
   time_diff(fast_start, "GDKmalloc");
   int *res = NULL;
-  res = (int *)Tloc(bn, 0);
+	res = (int*) Tloc(bn, 0);
+
   int i = 0;
 
-  void *address_start = Tbase(src);
-  void *step_address = src->theap.base;
-  const void *rose;
-  hs_get_bytecode_my(database, &rose);
+  // the core of the algorithm, expensive due to malloc/frees
+  BATloop(src, p, q) {
+    int measure_time = DEBUG && MEASURE_TIME();
+    char *err = NULL;
+    if (measure_time) get_time(&fast_start);
+    const char *t = (const char *)BUNtail(li, p);
+    if (measure_time) time_diff(fast_start, "BUNtail");
 
-  for (i = 0; i < len; i++) {
+    // revert tail value
     *tr = 0;
-    int measure = DEBUG && MEASURE_TIME();
-    if (measure) get_time(&fast_start);
-    str t =
-        (char *)(address_start + (var_t)((unsigned int *)(step_address))[i]);
-    if (measure) time_diff(fast_start, "get next record");
-
-    if (measure) get_time(&fast_start);
+    if (measure_time) get_time(&fast_start);
     int subject_len = strlen(t);
-    if (measure) time_diff(fast_start, "strlen time");
-
-    if (measure) get_time(&fast_start);
-    if (hs_scan_my(database, t, subject_len, 0, scratch, eventHandler, tr,
-                   rose) != HS_SUCCESS) {
+    if (measure_time) time_diff(fast_start, "strlen");
+    if (measure_time) get_time(&fast_start);
+    // matching a 64-byte text against pattern: 200 cycles. 60 ns.
+    if (hs_scan(database, t, subject_len, 0, scratch, eventHandler, tr) !=
+        HS_SUCCESS) {
       hs_free_scratch(scratch);
       hs_free_database(database);
       throw(MAL, "udf.hyperscanregex", "Unable to scan input buffer\n");
     }
-    if (measure) time_diff(fast_start, "hs_scan time");
-    res[i] = *tr;
+    if (measure_time) time_diff(fast_start, "hs_scan");
+
+    if (measure_time) get_time(&fast_start);
+    err = MAL_SUCCEED;
+    if (err != MAL_SUCCEED) {
+      BBPunfix(bn->batCacheid);
+      return err;
+    }
+    if (measure_time) time_diff(fast_start, "BBPUnfix");
+
+    // assert logical sanity
+    assert(tr != NULL);
+
+    if (measure_time) get_time(&fast_start);
+    // append reversed tail in result BAT
+    res[i++] = *tr;
+    /*
+    if (BUNappend(bn, tr, FALSE) != GDK_SUCCEED) {
+      BBPunfix(bn->batCacheid);
+      throw(MAL, "batudf.hyperscanregex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
+    }
+    */
+    if (measure_time) time_diff(fast_start, "BUNappend");
   }
 
-  get_time(&fast_start);
   BATsetcount(bn, len);
-  time_diff(fast_start, "BATsetcount time");
-  bn->tsorted = FALSE;
-  bn->trevsorted = FALSE;
+	bn->tsorted = FALSE;
+	bn->trevsorted = FALSE;
+	bn->tdense = FALSE;
+	BATkey(bn, FALSE);
 
+  //bn->batDirty = 1;
+
+  time_diff(fast_start, "LOOP");
   get_time(&fast_start);
   GDKfree(tr);
   time_diff(fast_start, "free");
@@ -344,4 +371,100 @@ char *UDFBATregex(bat *ret, const bat *arg, const char **pattern) {
 char *UDFBATdfaregex(bat *ret, const bat *arg, const char **pattern) {
   reset_total_time();
   return UDFBATcommenregex_(ret, arg, pattern, 1);
+}
+
+char *
+UDFmyregex(int *ret, const char **rule, const char **source)
+{
+	assert(ret != NULL && rule != NULL && source != NULL);
+	//printf("pattern is %s, string is %s\n", pattern, src);
+
+  struct reg_env* env = reg_open_env();
+  struct reg_pattern* pattern = reg_new_pattern(env, *rule);
+  *ret = reg_match(pattern, *source, strlen(*source));
+  reg_close_env(env);
+	return MAL_SUCCEED;
+}
+
+static char *UDFBATmyregex_(BAT **ret, BAT *src, struct reg_pattern *re) {
+  BATiter li;
+  BAT *bn = NULL;
+  BUN p = 0, q = 0;
+
+  /* assert calling sanity */
+  assert(ret != NULL);
+
+  /* handle NULL pointer */
+  if (src == NULL)
+    throw(MAL, "batudf.myregex", SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
+
+  /* check tail type */
+  if (src->ttype != TYPE_str) {
+    throw(MAL, "batudf.myregex", "tail-type of input BAT must be TYPE_str");
+  }
+
+  /* allocate void-headed result BAT */
+  bn = COLnew(src->hseqbase, TYPE_int, BATcount(src), TRANSIENT);
+  if (bn == NULL) {
+    throw(MAL, "batudf.myregex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
+  }
+
+  /* create BAT iterator */
+  li = bat_iterator(src);
+  int *tr = malloc(sizeof *tr);
+  int cnt = 0;
+  /* the core of the algorithm, expensive due to malloc/frees */
+  BATloop(src, p, q) {
+    char *err = NULL;
+    cnt++;
+    const char *t = (const char *)BUNtail(li, p);
+    if (t[0] == '\0') 
+      continue;
+
+    /* revert tail value */
+    *tr = 0;
+    *tr = reg_match(re, t, strlen(t));
+
+    /* assert logical sanity */
+    assert(tr != NULL);
+
+    /* append reversed tail in result BAT */
+    if (BUNappend(bn, tr, FALSE) != GDK_SUCCEED) {
+      BBPunfix(bn->batCacheid);
+      throw(MAL, "batudf.regex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
+    }
+  }
+
+  /* free memory allocated in UDFreverse_() */
+  free(tr);
+  *ret = bn;
+  return MAL_SUCCEED;
+}
+
+char *UDFBATmyregex(bat *ret, const bat *arg, const char **pattern) {
+  reset_total_time();
+  BAT *res = NULL, *src = NULL;
+  char *msg = NULL;
+  const char *error;
+  int erroffset;
+
+  /* assert calling sanity */
+  assert(ret != NULL && arg != NULL);
+
+  /* bat-id -> BAT-descriptor */
+  if ((src = BATdescriptor(*arg)) == NULL)
+    throw(MAL, "batudf.myregex", SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
+  
+  struct reg_env* env = reg_open_env();
+  struct reg_pattern* re = reg_new_pattern(env, *pattern);
+  msg = UDFBATmyregex_(&res, src, re);
+  reg_close_env(env);
+
+  /* release input BAT-descriptor */
+  BBPunfix(src->batCacheid);
+  if (msg == MAL_SUCCEED) {
+    /* register result BAT in buffer pool */
+    BBPkeepref((*ret = res->batCacheid));
+  }
+  return msg;
 }
