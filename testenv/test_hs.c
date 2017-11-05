@@ -1,6 +1,10 @@
 #include <hs/hs.h>
 #include <stdio.h>
 #include <string.h>
+#include <cre2.h>
+
+
+
 static int count = 0;
 static int eventHandler(unsigned int id, unsigned long long from,
                         unsigned long long to, unsigned int flags, void *ctx) {
@@ -8,7 +12,7 @@ static int eventHandler(unsigned int id, unsigned long long from,
   return 0;
 }
 
-int hs_find_all(char *pattern, char *subject) {
+int hs_find_all(char *pattern, const char *subject) {
   int subject_len = strlen(subject);
   hs_database_t *database;
   hs_compile_error_t *compile_err;
@@ -43,8 +47,32 @@ int hs_find_all(char *pattern, char *subject) {
 }
 
 int main() {
-  char *subject = "abc";
+  /*
+  const char *subject = "abc";
   hs_find_all("^a.", subject);
-  printf("matches: %d\n", count);
+  printf("hs matches: %d\n", count);
+  int re2_result = re2_find_all("^a.", subject);
+  printf("re2 matched: %d\n", re2_result);
+  cre2_string_t match;
+  const char* rule = "^a";
+  const char* source = "abc";
+  int ret = cre2_easy_match(rule, strlen(rule), source, strlen(source),
+                            &match, 1);
+*/
+  cre2_regexp_t *	rex;
+  cre2_options_t *	opt;
+  const char *		pattern;
+  pattern = "^a";
+  opt     = cre2_opt_new();
+  cre2_opt_set_posix_syntax(opt, 1);
+  rex = cre2_new(pattern, strlen(pattern), opt);
+  cre2_string_t	match;
+  int			e;
+  const char *	text = "bc";
+  int			text_len = strlen(text);
+  e = cre2_match(rex, text, text_len, 0, text_len, CRE2_UNANCHORED, NULL, 0);
+  cre2_opt_delete(opt);
+
+  printf("xxxxxxx%d\n",e);
   return 0;
 }

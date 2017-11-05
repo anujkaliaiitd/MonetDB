@@ -1,5 +1,6 @@
 CC = gcc
-CFLAGS += -g -O2 -Wall
+CFLAGS += -g -O0 -Wall
+#CFLAGS += -Wall
 AR = ar rcu
 
 UNAME_S := $(shell uname -s)
@@ -41,7 +42,7 @@ TEST_CAST_OUT = $(foreach s, $(TEST_CAST), $(basename $(s)))
 all: $(REGEX_LIB_OBJ) $(REGEX_SHARE_LIB) $(TEST_CAST_OUT)
 
 $(REGEX_LIB_OBJ): $(REGEX_LIB)
-	$(CC) -c -fPIC $(basename $@).c -o $@
+	$(CC) $(CFLAGS) -c -fPIC $(basename $@).c -o $@
 
 $(REGEX_SHARE_LIB): $(REGEX_LIB_OBJ)
 	$(CC) -shared -o $@ $(REGEX_LIB_OBJ)

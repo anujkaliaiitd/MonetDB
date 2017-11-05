@@ -24,7 +24,17 @@ command myregex(b:bat[:str], pattern:str):bat[:int]
 address UDFBATmyregex
 comment "my Regex a BAT of strings";
 
-#module udf;
-#command myregex(pattern:str, src:str):int
-#address UDFmyregex
-#comment "my regex function";
+module batudf;
+command cre2regex(b:bat[:str], pattern:str):bat[:int]
+address UDFBATcre2regex
+comment "my Regex a BAT of strings";
+
+module udf;
+command myregex(pattern:str, src:str):int
+address UDFmyregex
+comment "my regex function";
+
+module udf;
+command cre2regex(pattern:str, src:str):int
+address UDFcre2regex
+comment "cre2 regex function";

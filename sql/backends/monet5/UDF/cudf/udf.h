@@ -31,10 +31,12 @@
 udf_export char * UDFBATregex(bat *ret, const bat *arg, const char **pattern);
 udf_export char * UDFBATdfaregex(bat *ret, const bat *arg, const char **pattern);
 udf_export char * UDFBAThyperscanregex(bat *ret, const bat *arg, const char **pattern);
-//udf_export char * UDFmyregex(int *ret, const char **pattern, const char **src);
+udf_export char * UDFmyregex(int *ret, const char **pattern, const char **src);
+udf_export char * UDFcre2regex(int *ret, const char **pattern, const char **src);
 udf_export char * UDFBATmyregex(bat *ret, const bat *arg, const char **pattern);
 
 /*below is data structure for my regex*/
+
 struct reg_env;
 struct reg_pattern;
 struct reg_env* reg_open_env();

@@ -28,3 +28,18 @@ $ ./generate_input --input-file dataJun7-2016-clean.csv --string-len 64 --num-st
   $ sudo cp libregex.so /usr/local/lib/
   $ export LIBS="-lhs -lre2 -lregex"
 
+6. How to install re2 and merge into MonetDB:
+  since re2 is written in C++, we need to use their wrapper function cre2:
+  https://github.com/marcomaggi/cre2
+  $ cd cre2
+  $ sh autogen.sh
+  $ mkdir build
+  $ cd build
+  $ ../configure
+  $ make
+  $ make check
+  $ make install
+  $ sudo vim /etc/ld.so.conf
+  $ add /usr/local/lib/cre2
+  $ export LIBS="-lhs -lre2 -lregex -lcre2"
+

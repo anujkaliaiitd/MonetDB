@@ -23,3 +23,6 @@ returns BOOLEAN external name pcre.imatch;
 
 create function myregex(pattern string, src string)
 returns int external name udf.myregex;
+
+create function cre2regex(pattern string, src string)
+returns int external name udf.cre2regex;
