@@ -459,7 +459,7 @@ UDFlvzixun_regex(int *ret, const char **rule, const char **source)
   //struct reg_pattern* pattern = reg_new_pattern(lvzixun_env, *rule);
   //*ret = reg_match(pattern, *source, strlen(*source));
   struct fast_dfa_t* fast_dfa = lvzixun_regex_get_fast_dfa(lvzixun_env, *rule);
-  *ret = lvzixun_fast_dfa_reg_match(fast_dfa, *source, strlen(*source));
+  *ret = lvzixun_fast_dfa_reg_match(fast_dfa, *source);
   reg_close_env(lvzixun_env);
 	return MAL_SUCCEED;
 }
@@ -492,7 +492,7 @@ static char *UDFBATlvzixun_regex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
       continue;
 
     *tr = 0;
-    *tr = lvzixun_fast_dfa_reg_match(re, t, strlen(t));
+    *tr = lvzixun_fast_dfa_reg_match(re, t);
 
     assert(tr != NULL);
 
