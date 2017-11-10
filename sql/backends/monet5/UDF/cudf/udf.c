@@ -478,13 +478,18 @@ static char *UDFBATlvzixun_regex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
     throw(MAL, "batudf.lvzixun_regex", "tail-type of input BAT must be TYPE_str");
   }
 
+	int len = BATcount(src);
   bn = COLnew(src->hseqbase, TYPE_int, BATcount(src), TRANSIENT);
   if (bn == NULL) {
     throw(MAL, "batudf.lvzixun_regex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
   }
 
   li = bat_iterator(src);
-  int *tr = malloc(sizeof *tr);
+  int *tr = GDKmalloc(sizeof *tr);
+  int *res = NULL;
+  res = (int*) Tloc(bn, 0);
+  int i = 0;
+
   BATloop(src, p, q) {
     char *err = NULL;
     const char *t = (const char *)BUNtail(li, p);
@@ -495,14 +500,22 @@ static char *UDFBATlvzixun_regex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
     *tr = lvzixun_fast_dfa_reg_match(re, t);
 
     assert(tr != NULL);
-
+    res[i++] = *tr;
+  
+    /*
     if (BUNappend(bn, tr, FALSE) != GDK_SUCCEED) {
       BBPunfix(bn->batCacheid);
       throw(MAL, "batudf.regex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
-    }
+    }*/
   }
 
-  free(tr);
+  BATsetcount(bn, len);
+  bn->tsorted = FALSE;
+  bn->trevsorted = FALSE;
+  bn->tdense = FALSE;
+  BATkey(bn, FALSE);
+ 
+  GDKfree(tr);
   *ret = bn;
   return MAL_SUCCEED;
 }

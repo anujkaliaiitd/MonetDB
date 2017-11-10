@@ -1,4 +1,9 @@
 1. How to test all of the sql:
+# use generate_four_data scripts to generate your test data:
+$ ./testenv/generate_four_dataset.sh
+
+#First create you own table and load records to your table
+$ rlwrap mclient -u monetdb < create_table.sql
 
 # If you want to test time of all the commands:
 rlwrap mclient -u monetdb --interactive=ms -e < test.sql > result.csv
