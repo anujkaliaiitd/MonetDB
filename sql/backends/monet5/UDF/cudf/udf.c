@@ -452,19 +452,19 @@ char *UDFBATcre2regex(bat *ret, const bat *arg, const char **pattern) {
 }
 
 char *
-UDFmyregex(int *ret, const char **rule, const char **source)
+UDFlvzixun_regex(int *ret, const char **rule, const char **source)
 {
 	assert(ret != NULL && rule != NULL && source != NULL);
-  struct reg_env* env = reg_open_env();
-  //struct reg_pattern* pattern = reg_new_pattern(env, *rule);
+  struct reg_env* lvzixun_env = reg_open_env();
+  //struct reg_pattern* pattern = reg_new_pattern(lvzixun_env, *rule);
   //*ret = reg_match(pattern, *source, strlen(*source));
-  struct fast_dfa_t* fast_dfa = only_reg_new_pattern(env, *rule);
-  *ret = only_reg_match(fast_dfa, *source, strlen(*source));
-  reg_close_env(env);
+  struct fast_dfa_t* fast_dfa = lvzixun_regex_get_fast_dfa(lvzixun_env, *rule);
+  *ret = lvzixun_fast_dfa_reg_match(fast_dfa, *source, strlen(*source));
+  reg_close_env(lvzixun_env);
 	return MAL_SUCCEED;
 }
 
-static char *UDFBATmyregex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
+static char *UDFBATlvzixun_regex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
   BATiter li;
   BAT *bn = NULL;
   BUN p = 0, q = 0;
@@ -472,15 +472,15 @@ static char *UDFBATmyregex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
   assert(ret != NULL);
 
   if (src == NULL)
-    throw(MAL, "batudf.myregex", SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
+    throw(MAL, "batudf.lvzixun_regex", SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
 
   if (src->ttype != TYPE_str) {
-    throw(MAL, "batudf.myregex", "tail-type of input BAT must be TYPE_str");
+    throw(MAL, "batudf.lvzixun_regex", "tail-type of input BAT must be TYPE_str");
   }
 
   bn = COLnew(src->hseqbase, TYPE_int, BATcount(src), TRANSIENT);
   if (bn == NULL) {
-    throw(MAL, "batudf.myregex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
+    throw(MAL, "batudf.lvzixun_regex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
   }
 
   li = bat_iterator(src);
@@ -492,7 +492,7 @@ static char *UDFBATmyregex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
       continue;
 
     *tr = 0;
-    *tr = only_reg_match(re, t, strlen(t));
+    *tr = lvzixun_fast_dfa_reg_match(re, t, strlen(t));
 
     assert(tr != NULL);
 
@@ -507,7 +507,7 @@ static char *UDFBATmyregex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
   return MAL_SUCCEED;
 }
 
-char *UDFBATmyregex(bat *ret, const bat *arg, const char **pattern) {
+char *UDFBATlvzixun_regex(bat *ret, const bat *arg, const char **pattern) {
   reset_total_time();
   BAT *res = NULL, *src = NULL;
   char *msg = NULL;
@@ -517,14 +517,14 @@ char *UDFBATmyregex(bat *ret, const bat *arg, const char **pattern) {
   assert(ret != NULL && arg != NULL);
 
   if ((src = BATdescriptor(*arg)) == NULL)
-    throw(MAL, "batudf.myregex", SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
+    throw(MAL, "batudf.lvzixun_regex", SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
   
-  struct reg_env* env = reg_open_env();
-  //struct reg_pattern* re = reg_new_pattern(env, *pattern);
-  struct fast_dfa_t* re = only_reg_new_pattern(env, *pattern);
+  struct reg_env* lvzixun_env = reg_open_env();
+  //struct reg_pattern* re = reg_new_pattern(lvzixun_env, *pattern);
+  struct fast_dfa_t* re = lvzixun_regex_get_fast_dfa(lvzixun_env, *pattern);
 
-  msg = UDFBATmyregex_(&res, src, re);
-  reg_close_env(env);
+  msg = UDFBATlvzixun_regex_(&res, src, re);
+  reg_close_env(lvzixun_env);
 
   BBPunfix(src->batCacheid);
   if (msg == MAL_SUCCEED) {

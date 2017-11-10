@@ -31,9 +31,9 @@
 udf_export char * UDFBATregex(bat *ret, const bat *arg, const char **pattern);
 udf_export char * UDFBATdfaregex(bat *ret, const bat *arg, const char **pattern);
 udf_export char * UDFBAThyperscanregex(bat *ret, const bat *arg, const char **pattern);
-udf_export char * UDFmyregex(int *ret, const char **pattern, const char **src);
+udf_export char * UDFlvzixun_regex(int *ret, const char **pattern, const char **src);
 udf_export char * UDFcre2regex(int *ret, const char **pattern, const char **src);
-udf_export char * UDFBATmyregex(bat *ret, const bat *arg, const char **pattern);
+udf_export char * UDFBATlvzixun_regex(bat *ret, const bat *arg, const char **pattern);
 
 /*below is data structure for my regex*/
 
@@ -46,8 +46,8 @@ void reg_free_pattern(struct reg_pattern* pattern);
 struct reg_longjump** reg_get_exception(struct reg_env* env);
 int reg_match(struct reg_pattern* pattern, const char* source, int len);
 struct fast_dfa_t;
-int only_reg_match(struct fast_dfa_t* fast_dfa, const char* source, int len);
-struct fast_dfa_t* only_reg_new_pattern(struct reg_env* env, const char* rule);
+int lvzixun_fast_dfa_reg_match(struct fast_dfa_t* fast_dfa, const char* source, int len);
+struct fast_dfa_t* lvzixun_regex_get_fast_dfa(struct reg_env* env, const char* rule);
 
 
 #endif /* _SQL_UDF_H_ */

@@ -1,4 +1,3 @@
-/*
 drop table if exists smallregextest1;
 drop table if exists smallregextest2;
 drop table if exists smallregextest3;
@@ -13,7 +12,6 @@ COPY INTO smallregextest1 FROM '/home/xzhang3/pattern_match_datasets/100_Q1.txt'
 COPY INTO smallregextest2 FROM '/home/xzhang3/pattern_match_datasets/100_Q2.txt' USING DELIMITERS '|','\n';
 COPY INTO smallregextest3 FROM '/home/xzhang3/pattern_match_datasets/100_Q3.txt' USING DELIMITERS '|','\n';
 COPY INTO smallregextest4 FROM '/home/xzhang3/pattern_match_datasets/100_Q4.txt' USING DELIMITERS '|','\n';
-*/
 
 drop table if exists regextest1;
 drop table if exists regextest2;

@@ -20,8 +20,8 @@ address UDFBATdfaregex
 comment "DFA Regex a BAT of strings";
 
 module batudf;
-command myregex(b:bat[:str], pattern:str):bat[:int]
-address UDFBATmyregex
+command lvzixun_regex(b:bat[:str], pattern:str):bat[:int]
+address UDFBATlvzixun_regex
 comment "my Regex a BAT of strings";
 
 module batudf;
@@ -30,8 +30,8 @@ address UDFBATcre2regex
 comment "my Regex a BAT of strings";
 
 module udf;
-command myregex(pattern:str, src:str):int
-address UDFmyregex
+command lvzixun_regex(pattern:str, src:str):int
+address UDFlvzixun_regex
 comment "my regex function";
 
 module udf;
