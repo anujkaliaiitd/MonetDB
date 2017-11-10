@@ -1,20 +1,41 @@
-select count(*) from regextest where name like '%Strasse%';
-select count(*) from regextest where regex(name, 'Strasse');
-select count(*) from regextest where dfaregex(name, 'Strasse');
-select count(*) from regextest where cre2regex(name, 'Strasse');
-select count(*) from regextest where hyperscanregex(name, 'Strasse');
-select count(*) from regextest where match(name, '(Strasse|Str\.).*(8[0-9]{4})');
-select count(*) from regextest where regex(name, '(Strasse|Str\.).*(8[0-9]{4})');
-select count(*) from regextest where dfaregex(name, '(Strasse|Str\.).*(8[0-9]{4})');
-select count(*) from regextest where cre2regex(name, '(Strasse|Str\.).*(8[0-9]{4})');
-select count(*) from regextest where hyperscanregex(name, '(Strasse|Str\.).*(8[0-9]{4})');
-select count(*) from regextest where match(name, '[0-9]+(USD|EUR|GBP)');
-select count(*) from regextest where regex(name, '[0-9]+(USD|EUR|GBP)');
-select count(*) from regextest where dfaregex(name, '[0-9]+(USD|EUR|GBP)');
-select count(*) from regextest where cre2regex(name, '[0-9]+(USD|EUR|GBP)');
-select count(*) from regextest where hyperscanregex(name, '[0-9]+(USD|EUR|GBP)');
-select count(*) from regextest where match(name, '[A-Za-z]{3}\:[0-9]{4}');
-select count(*) from regextest where regex(name, '[A-Za-z]{3}\:[0-9]{4}');
-select count(*) from regextest where dfaregex(name, '[A-Za-z]{3}\:[0-9]{4}');
-select count(*) from regextest where cre2regex(name, '[A-Za-z]{3}\:[0-9]{4}');
-select count(*) from regextest where hyperscanregex(name, '[A-Za-z]{3}\:[0-9]{4}');
+/*
+select count(*) from regextest1 where name like '%Strasse%';
+select count(*) from regextest1 where regex(name, 'Strasse');
+select count(*) from regextest1 where dfaregex(name, 'Strasse');
+select count(*) from regextest1 where cre2regex(name, 'Strasse');
+select count(*) from regextest1 where hyperscanregex(name, 'Strasse');
+select count(*) from regextest1 where myregex(name, '.*Strasse');
+
+select count(*) from regextest2 where match(name, '(Strasse|Str\.).*(8[0-9]{4})');
+select count(*) from regextest2 where regex(name, '(Strasse|Str\.).*(8[0-9]{4})');
+select count(*) from regextest2 where dfaregex(name, '(Strasse|Str\.).*(8[0-9]{4})');
+select count(*) from regextest2 where cre2regex(name, '(Strasse|Str\.).*(8[0-9]{4})');
+select count(*) from regextest2 where hyperscanregex(name, '(Strasse|Str\.).*(8[0-9]{4})');
+select count(*) from regextest2 where myregex(name, '.*(Strasse|Str\.)[a-zA-Z0-9].*(8[0-9][0-9][0-9][0-9])');
+
+select count(*) from regextest3 where match(name, '[0-9]+(USD|EUR|GBP)');
+select count(*) from regextest3 where regex(name, '[0-9]+(USD|EUR|GBP)');
+select count(*) from regextest3 where dfaregex(name, '[0-9]+(USD|EUR|GBP)');
+select count(*) from regextest3 where cre2regex(name, '[0-9]+(USD|EUR|GBP)');
+select count(*) from regextest3 where hyperscanregex(name, '[0-9]+(USD|EUR|GBP)');
+select count(*) from regextest3 where myregex(name, '.*[0-9]+(USD|EUR|GBP)');
+
+select count(*) from regextest4 where match(name, '[A-Za-z]{3}\:[0-9]{4}');
+select count(*) from regextest4 where regex(name, '[A-Za-z]{3}\:[0-9]{4}');
+select count(*) from regextest4 where dfaregex(name, '[A-Za-z]{3}\:[0-9]{4}');
+select count(*) from regextest4 where cre2regex(name, '[A-Za-z]{3}\:[0-9]{4}');
+select count(*) from regextest4 where hyperscanregex(name, '[A-Za-z]{3}\:[0-9]{4}');
+select count(*) from regextest4 where myregex(name, '.*[A-Za-z][A-Za-z][A-Za-z]\:[0-9][0-9][0-9][0-9]');
+*/
+
+select count(*) from regextest1 where hyperscanregex(name, 'Strasse');
+select count(*) from regextest1 where myregex(name, '.*Strasse');
+
+select count(*) from regextest2 where hyperscanregex(name, '(Strasse|Str\.).*(8[0-9]{4})');
+select count(*) from regextest2 where myregex(name, '.*(Strasse|Str\.)[a-zA-Z0-9].*(8[0-9][0-9][0-9][0-9])');
+
+select count(*) from regextest3 where hyperscanregex(name, '[0-9]+(USD|EUR|GBP)');
+select count(*) from regextest3 where myregex(name, '.*[0-9]+(USD|EUR|GBP)');
+
+select count(*) from regextest4 where hyperscanregex(name, '[A-Za-z]{3}\:[0-9]{4}');
+select count(*) from regextest4 where myregex(name, '.*[A-Za-z][A-Za-z][A-Za-z]\:[0-9][0-9][0-9][0-9]');

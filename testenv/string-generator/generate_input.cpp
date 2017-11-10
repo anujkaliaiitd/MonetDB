@@ -12,6 +12,7 @@
 #include <random>
 
 #include <boost/program_options.hpp>
+using namespace std;
 namespace po = boost::program_options;
 
 int create_db_input(std::ifstream& inputFile, std::vector<std::string>& strings, int stringLen, int stringNum)
@@ -275,6 +276,7 @@ int main(int argc, char **argv){
   
    std::ifstream inputFile (filename);
    std::vector<std::string> lines;
+   cout << "pattern type" << patternType << endl;
    if (inputFile.is_open())
    {
       create_db_input(inputFile, lines, stringLen, numString);

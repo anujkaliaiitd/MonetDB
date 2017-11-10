@@ -25,7 +25,7 @@
 #define EBUFLEN 128
 #define BUFLEN 1024
 #define MEASURE_TIME() ((rand() & 65535) == 65535)
-#define DEBUG true
+#define DEBUG false
 
 double total_time = 0;
 time_t last_update_time = 0;
@@ -40,7 +40,7 @@ void get_time(struct timespec *start) {
 void time_diff(struct timespec start, char *cmd) {
   struct timespec end;
   get_time(&end);
-  if (!DEBUG) return;
+  if (DEBUG) return;
   size_t tot_ns =
       (end.tv_sec - start.tv_sec) * 1000000000 + (end.tv_nsec - start.tv_nsec);
   printf("%s Overhead: Time per measurement = %.2f ns\n", cmd, (double)tot_ns);
@@ -456,13 +456,15 @@ UDFmyregex(int *ret, const char **rule, const char **source)
 {
 	assert(ret != NULL && rule != NULL && source != NULL);
   struct reg_env* env = reg_open_env();
-  struct reg_pattern* pattern = reg_new_pattern(env, *rule);
-  *ret = reg_match(pattern, *source, strlen(*source));
+  //struct reg_pattern* pattern = reg_new_pattern(env, *rule);
+  //*ret = reg_match(pattern, *source, strlen(*source));
+  struct fast_dfa_t* fast_dfa = only_reg_new_pattern(env, *rule);
+  *ret = only_reg_match(fast_dfa, *source, strlen(*source));
   reg_close_env(env);
 	return MAL_SUCCEED;
 }
 
-static char *UDFBATmyregex_(BAT **ret, BAT *src, struct reg_pattern *re) {
+static char *UDFBATmyregex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
   BATiter li;
   BAT *bn = NULL;
   BUN p = 0, q = 0;
@@ -490,7 +492,7 @@ static char *UDFBATmyregex_(BAT **ret, BAT *src, struct reg_pattern *re) {
       continue;
 
     *tr = 0;
-    *tr = reg_match(re, t, strlen(t));
+    *tr = only_reg_match(re, t, strlen(t));
 
     assert(tr != NULL);
 
@@ -518,7 +520,9 @@ char *UDFBATmyregex(bat *ret, const bat *arg, const char **pattern) {
     throw(MAL, "batudf.myregex", SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
   
   struct reg_env* env = reg_open_env();
-  struct reg_pattern* re = reg_new_pattern(env, *pattern);
+  //struct reg_pattern* re = reg_new_pattern(env, *pattern);
+  struct fast_dfa_t* re = only_reg_new_pattern(env, *pattern);
+
   msg = UDFBATmyregex_(&res, src, re);
   reg_close_env(env);
 
