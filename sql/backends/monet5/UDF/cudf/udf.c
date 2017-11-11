@@ -29,7 +29,6 @@
 
 double total_time = 0;
 time_t last_update_time = 0;
-atomic_int acnt;
 
 
 void get_time(struct timespec *start) {
@@ -37,12 +36,13 @@ void get_time(struct timespec *start) {
   clock_gettime(CLOCK_REALTIME, start);
 }
 
-void time_diff(struct timespec start, char *cmd) {
+void time_diff(struct timespec start, char *cmd, int iter) {
   struct timespec end;
   get_time(&end);
-  if (DEBUG) return;
+  if (!DEBUG) return;
   size_t tot_ns =
       (end.tv_sec - start.tv_sec) * 1000000000 + (end.tv_nsec - start.tv_nsec);
+  tot_ns = tot_ns/iter;
   printf("%s Overhead: Time per measurement = %.2f ns\n", cmd, (double)tot_ns);
 }
 
@@ -58,7 +58,6 @@ void reset_total_time() {
       printf("reset time with interval %7.7f\n", interval);
     }
     total_time = 0;
-    acnt = 0;
     last_update_time = start;
   }
 }
@@ -78,6 +77,7 @@ static char *UDFBAThyperscanregex_(BAT **ret, BAT *src, hs_database_t *database,
   BUN p = 0, q = 0;
   struct timespec fast_start;
 
+  /*
   // assert calling sanity
   assert(ret != NULL);
 
@@ -90,14 +90,17 @@ static char *UDFBAThyperscanregex_(BAT **ret, BAT *src, hs_database_t *database,
     throw(MAL, "batudf.hyperscanregex",
           "tail-type of input BAT must be TYPE_str");
   }
+  */
 
   // allocate void-headed result BAT
   int len = BATcount(src);
   
   bn = COLnew(src->hseqbase, TYPE_int, len, TRANSIENT);
+  /*
   if (bn == NULL) {
     throw(MAL, "batudf.hyperscanregex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
-  }
+  }*/
+
   // create BAT iterator
   li = bat_iterator(src);
   int *tr = GDKmalloc(sizeof *tr);
@@ -106,50 +109,29 @@ static char *UDFBAThyperscanregex_(BAT **ret, BAT *src, hs_database_t *database,
 
   int i = 0;
 
+  if (DEBUG) get_time(&fast_start);
   // the core of the algorithm, expensive due to malloc/frees
   BATloop(src, p, q) {
-    int measure_time = DEBUG && MEASURE_TIME();
     char *err = NULL;
     const char *t = (const char *)BUNtail(li, p);
-
     // revert tail value
     *tr = 0;
     int subject_len = strlen(t);
-    if (measure_time) get_time(&fast_start);
     if (hs_scan(database, t, subject_len, 0, scratch, eventHandler, tr) !=
         HS_SUCCESS) {
       hs_free_scratch(scratch);
       hs_free_database(database);
       throw(MAL, "udf.hyperscanregex", "Unable to scan input buffer\n");
     }
-    if (measure_time) time_diff(fast_start, "hyperscanmatch");
-
-    err = MAL_SUCCEED;
-    if (err != MAL_SUCCEED) {
-      BBPunfix(bn->batCacheid);
-      return err;
-    }
-
-    // assert logical sanity
-    assert(tr != NULL);
-
     // append reversed tail in result BAT
     res[i++] = *tr;
-    /*
-    if (BUNappend(bn, tr, FALSE) != GDK_SUCCEED) {
-      BBPunfix(bn->batCacheid);
-      throw(MAL, "batudf.hyperscanregex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
-    }
-    */
   }
-
+  if (DEBUG) time_diff(fast_start, "hyperscanmatch", len);
   BATsetcount(bn, len);
 	bn->tsorted = FALSE;
 	bn->trevsorted = FALSE;
 	bn->tdense = FALSE;
 	BATkey(bn, FALSE);
-
-  //bn->batDirty = 1;
 
   GDKfree(tr);
   *ret = bn;
@@ -170,10 +152,6 @@ char *UDFBAThyperscanregex(bat *ret, const bat *arg, const char **pattern) {
   int erroffset;
 
   // Check size of BAT
-  // Find time taken in this function - don't use globals
-  // Time taken when no scan is done (just remove all hyperscan code)
-  // Clean up this file - remove reverse(), fuse()
-
   /* assert calling sanity */
   assert(ret != NULL && arg != NULL && pattern != NULL);
 
@@ -184,14 +162,14 @@ char *UDFBAThyperscanregex(bat *ret, const bat *arg, const char **pattern) {
   hs_database_t *database;
   hs_compile_error_t *compile_err;
   struct timespec fast_start;
-  if (DEBUG) get_time(&fast_start);
+  //if (DEBUG) get_time(&fast_start);
   if (hs_compile(*pattern,
                  HS_FLAG_SINGLEMATCH | HS_FLAG_PREFILTER | HS_FLAG_DOTALL,
                  HS_MODE_BLOCK, NULL, &database, &compile_err) != HS_SUCCESS) {
     hs_free_compile_error(compile_err);
     throw(MAL, "udf.hyperscanregx", "Unable to compile pattern");
   }
-  if (DEBUG) time_diff(fast_start, "hyperscancompile");
+  //if (DEBUG) time_diff(fast_start, "hyperscancompile",1);
 
   hs_scratch_t *scratch = NULL;
   if (hs_alloc_scratch(database, &scratch) != HS_SUCCESS) {
@@ -234,13 +212,13 @@ char *UDFregex_(int *ret, const char *src, pcre *re, int dfa) {
   if (measure_time)  get_time(&fast_start);
   if (dfa == 0) {
     rc = pcre_exec(re, NULL, src, strlen(src), 0, 0, ovector, OVECCOUNT);
-    if (measure_time) time_diff(fast_start, "pcrematch");
+    if (measure_time) time_diff(fast_start, "pcrematch",1);
   }
   else {
     int workspace[WORCOUNT];
     rc = pcre_dfa_exec(re, NULL, src, strlen(src), 0, PCRE_DFA_SHORTEST,
                        ovector, OVECCOUNT, workspace, WORCOUNT);
-    if (measure_time) time_diff(fast_start, "dfapcrematch");
+    if (measure_time) time_diff(fast_start, "dfapcrematch",1);
   }
 
   if (measure_time) {
@@ -338,7 +316,7 @@ static char *UDFBATcommenregex_(bat *ret, const bat *arg, const char **pattern,
   struct timespec fast_start;
   if (DEBUG) get_time(&fast_start);
   re = pcre_compile(*pattern, 0, &error, &erroffset, NULL);
-  if (DEBUG) time_diff(fast_start, "pcrecompile");
+  if (DEBUG) time_diff(fast_start, "pcrecompile", 1);
 
   /* do the work */
   msg = UDFBATregex_(&res, src, re, dfa);
@@ -407,7 +385,7 @@ static char *UDFBATcre2regex_(BAT **ret, BAT *src, cre2_regexp_t *re) {
 
     if (measure_time) get_time(&fast_start);
 		*tr = cre2_match(re, t, t_len, 0, t_len, CRE2_UNANCHORED, NULL, 0);
-    if (measure_time) time_diff(fast_start, "cre2match");
+    if (measure_time) time_diff(fast_start, "cre2match", 1);
     assert(tr != NULL);
 
     if (BUNappend(bn, tr, FALSE) != GDK_SUCCEED) {
@@ -440,7 +418,7 @@ char *UDFBATcre2regex(bat *ret, const bat *arg, const char **pattern) {
   cre2_options_t *  opt = cre2_opt_new();
   cre2_opt_set_posix_syntax(opt, 1);
   re = cre2_new(*pattern, strlen(*pattern), opt);
-  if (DEBUG) time_diff(fast_start, "cre2compile");
+  if (DEBUG) time_diff(fast_start, "cre2compile", 1);
 	msg = UDFBATcre2regex_(&res, src, re);
 
   BBPunfix(src->batCacheid);
@@ -456,8 +434,6 @@ UDFlvzixun_regex(int *ret, const char **rule, const char **source)
 {
 	assert(ret != NULL && rule != NULL && source != NULL);
   struct reg_env* lvzixun_env = reg_open_env();
-  //struct reg_pattern* pattern = reg_new_pattern(lvzixun_env, *rule);
-  //*ret = reg_match(pattern, *source, strlen(*source));
   struct fast_dfa_t* fast_dfa = lvzixun_regex_get_fast_dfa(lvzixun_env, *rule);
   *ret = lvzixun_fast_dfa_reg_match(fast_dfa, *source);
   reg_close_env(lvzixun_env);
@@ -465,49 +441,44 @@ UDFlvzixun_regex(int *ret, const char **rule, const char **source)
 }
 
 static char *UDFBATlvzixun_regex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
+
   BATiter li;
   BAT *bn = NULL;
   BUN p = 0, q = 0;
+  struct timespec fast_start;
 
+  /*
   assert(ret != NULL);
-
   if (src == NULL)
     throw(MAL, "batudf.lvzixun_regex", SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
 
   if (src->ttype != TYPE_str) {
     throw(MAL, "batudf.lvzixun_regex", "tail-type of input BAT must be TYPE_str");
   }
+  */
 
 	int len = BATcount(src);
   bn = COLnew(src->hseqbase, TYPE_int, BATcount(src), TRANSIENT);
+  /*
   if (bn == NULL) {
     throw(MAL, "batudf.lvzixun_regex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
-  }
+  }*/
 
   li = bat_iterator(src);
-  int *tr = GDKmalloc(sizeof *tr);
+  int tr = 0;
   int *res = NULL;
   res = (int*) Tloc(bn, 0);
   int i = 0;
 
+  if (DEBUG) get_time(&fast_start);
   BATloop(src, p, q) {
     char *err = NULL;
     const char *t = (const char *)BUNtail(li, p);
-    if (t[0] == '\0') 
-      continue;
-
-    *tr = 0;
-    *tr = lvzixun_fast_dfa_reg_match(re, t);
-
-    assert(tr != NULL);
-    res[i++] = *tr;
-  
-    /*
-    if (BUNappend(bn, tr, FALSE) != GDK_SUCCEED) {
-      BBPunfix(bn->batCacheid);
-      throw(MAL, "batudf.regex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
-    }*/
+    tr = 0;
+    tr = lvzixun_fast_dfa_reg_match(re, t);
+    res[i++] = tr;
   }
+  if (DEBUG) time_diff(fast_start, "lv match", len);
 
   BATsetcount(bn, len);
   bn->tsorted = FALSE;
@@ -515,7 +486,6 @@ static char *UDFBATlvzixun_regex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
   bn->tdense = FALSE;
   BATkey(bn, FALSE);
  
-  GDKfree(tr);
   *ret = bn;
   return MAL_SUCCEED;
 }
@@ -533,7 +503,6 @@ char *UDFBATlvzixun_regex(bat *ret, const bat *arg, const char **pattern) {
     throw(MAL, "batudf.lvzixun_regex", SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
   
   struct reg_env* lvzixun_env = reg_open_env();
-  //struct reg_pattern* re = reg_new_pattern(lvzixun_env, *pattern);
   struct fast_dfa_t* re = lvzixun_regex_get_fast_dfa(lvzixun_env, *pattern);
 
   msg = UDFBATlvzixun_regex_(&res, src, re);
