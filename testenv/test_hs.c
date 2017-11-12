@@ -39,18 +39,17 @@ int hs_find_all(char *pattern, const char *subject) {
     hs_free_scratch(scratch);
     return 0;
   }
-
-
+  hs_clean_rose(scratch, rose);
   hs_free_scratch(scratch);
   hs_free_database(database);
   return 1;
 }
 
 int main() {
-  /*
   const char *subject = "abc";
   hs_find_all("^a.", subject);
   printf("hs matches: %d\n", count);
+  /*
   int re2_result = re2_find_all("^a.", subject);
   printf("re2 matched: %d\n", re2_result);
   cre2_string_t match;
@@ -58,7 +57,6 @@ int main() {
   const char* source = "abc";
   int ret = cre2_easy_match(rule, strlen(rule), source, strlen(source),
                             &match, 1);
-*/
   cre2_regexp_t *	rex;
   cre2_options_t *	opt;
   const char *		pattern;
@@ -74,5 +72,6 @@ int main() {
   cre2_opt_delete(opt);
 
   printf("xxxxxxx%d\n",e);
+  */
   return 0;
 }
