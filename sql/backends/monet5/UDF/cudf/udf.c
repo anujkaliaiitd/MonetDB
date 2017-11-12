@@ -468,6 +468,9 @@ static char *UDFBATlvzixun_regex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
   for (q = BATcount(src), p = 0; p < q; p++) {
     char *err = NULL;
     const char *t = (const char *)BUNtail(li, p);
+    // @xin: Sometimes changing this to (t, 0, x), where x is in {1, 2, 3} can
+    // help a bit.
+    __builtin_prefetch(t, 0, 0);
     source_batch[i & 7] = (char *)t;
     if ((i & 7) == 7) {
       lvzixun_fast_dfa_reg_match_batch(re, source_batch, bat_ret);
@@ -479,6 +482,11 @@ static char *UDFBATlvzixun_regex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
     i++;
   }
 
+  // @xin: Can you add a comment to explain this part? It seems to process
+  // leftover records, but the idx_start computation is not clear. BTW, since
+  // this happens only once per table and only for a few records, you don't need
+  // to optimize it too much. For example, using a non-batched match is good
+  // enough.
   lvzixun_fast_dfa_reg_match_batch(re, source_batch, bat_ret);
   int idx_start = (i >> 3) << 3;
   for (int j = 0; j < BATCH_SIZE && idx_start + j < i; j++) {
