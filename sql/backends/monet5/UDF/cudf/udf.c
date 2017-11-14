@@ -426,6 +426,7 @@ char *UDFlvzixun_regex(int *ret, const char **rule, const char **source) {
   assert(ret != NULL && rule != NULL && source != NULL);
   struct reg_env *lvzixun_env = reg_open_env();
   struct fast_dfa_t *fast_dfa = lvzixun_regex_get_fast_dfa(lvzixun_env, *rule);
+  *ret = 0;
   *ret = lvzixun_fast_dfa_reg_match(fast_dfa, *source);
   reg_close_env(lvzixun_env);
   return MAL_SUCCEED;
@@ -470,10 +471,11 @@ static char *UDFBATlvzixun_regex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
     const char *t = (const char *)BUNtail(li, p);
     // @xin: Sometimes changing this to (t, 0, x), where x is in {1, 2, 3} can
     // help a bit.
-    __builtin_prefetch(t, 0, 0);
+    __builtin_prefetch(t, 0, 2);
     source_batch[i & 7] = (char *)t;
     if ((i & 7) == 7) {
-      lvzixun_fast_dfa_reg_match_batch(re, source_batch, bat_ret);
+      lvzixun_fast_dfa_state_match_batch_same_len(re, source_batch, bat_ret);
+      //lvzixun_fast_dfa_reg_match_batch(re, source_batch, bat_ret);
       int idx_start = (i >> 3) << 3;
       for (int j = 0; j < BATCH_SIZE; j++) {
         res[idx_start + j] = bat_ret[j];
@@ -487,8 +489,12 @@ static char *UDFBATlvzixun_regex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
   // this happens only once per table and only for a few records, you don't need
   // to optimize it too much. For example, using a non-batched match is good
   // enough.
-  lvzixun_fast_dfa_reg_match_batch(re, source_batch, bat_ret);
-  int idx_start = (i >> 3) << 3;
+  //
+  // This part is to handle when the total batch size can not be divided by 8
+  // And we change the front element in source_batch and only  save the related result to res 
+  lvzixun_fast_dfa_state_match_batch_same_len(re, source_batch, bat_ret);
+  //lvzixun_fast_dfa_reg_match_batch(re, source_batch, bat_ret);
+  int idx_start = i / 8 * 8;
   for (int j = 0; j < BATCH_SIZE && idx_start + j < i; j++) {
     res[idx_start + j] = bat_ret[j];
   }
