@@ -432,6 +432,41 @@ char *UDFlvzixun_regex(int *ret, const char **rule, const char **source) {
   return MAL_SUCCEED;
 }
 
+static char *UDFBATlvzixun_single_regex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
+  BATiter li;
+  BAT *bn = NULL;
+  BUN p = 0, q = 0;
+  struct timespec fast_start;
+
+	int len = BATcount(src);
+  bn = COLnew(src->hseqbase, TYPE_int, BATcount(src), TRANSIENT);
+
+  li = bat_iterator(src);
+  int tr = 0;
+  int *res = NULL;
+  res = (int*) Tloc(bn, 0);
+  int i = 0;
+
+  if (DEBUG) get_time(&fast_start);
+  BATloop(src, p, q) {
+    char *err = NULL;
+    const char *t = (const char *)BUNtail(li, p);
+    tr = 0;
+    tr = lvzixun_fast_dfa_reg_match(re, t);
+    res[i++] = tr;
+  }
+  if (DEBUG) time_diff(fast_start, "lv match", len);
+
+  BATsetcount(bn, len);
+  bn->tsorted = FALSE;
+  bn->trevsorted = FALSE;
+  bn->tdense = FALSE;
+  BATkey(bn, FALSE);
+ 
+  *ret = bn;
+  return MAL_SUCCEED;
+}
+
 static char *UDFBATlvzixun_regex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
   BATiter li;
   BAT *bn = NULL;
@@ -483,7 +518,7 @@ static char *UDFBATlvzixun_regex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
     }
     i++;
   }
-
+  if (DEBUG) time_diff(fast_start, "lvzmatch", len);
   // @xin: Can you add a comment to explain this part? It seems to process
   // leftover records, but the idx_start computation is not clear. BTW, since
   // this happens only once per table and only for a few records, you don't need
@@ -499,7 +534,6 @@ static char *UDFBATlvzixun_regex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
     res[idx_start + j] = bat_ret[j];
   }
 
-  if (DEBUG) time_diff(fast_start, "lv match", len);
 
   BATsetcount(bn, len);
   bn->tsorted = FALSE;
@@ -517,16 +551,21 @@ char *UDFBATlvzixun_regex(bat *ret, const bat *arg, const char **pattern) {
   char *msg = NULL;
   const char *error;
   int erroffset;
+  struct timespec fast_start;
 
   assert(ret != NULL && arg != NULL);
 
   if ((src = BATdescriptor(*arg)) == NULL)
     throw(MAL, "batudf.lvzixun_regex", SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
-
+  
+  if (DEBUG) get_time(&fast_start);
   struct reg_env *lvzixun_env = reg_open_env();
   struct fast_dfa_t *re = lvzixun_regex_get_fast_dfa(lvzixun_env, *pattern);
+  if (DEBUG) time_diff(fast_start, "lvzcompile", 1);
 
   msg = UDFBATlvzixun_regex_(&res, src, re);
+	
+  //msg = UDFBATlvzixun_single_regex_(&res, src, re);
   reg_close_env(lvzixun_env);
 
   BBPunfix(src->batCacheid);
