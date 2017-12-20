@@ -32,7 +32,6 @@ udf_export char * UDFBATregex(bat *ret, const bat *arg, const char **pattern);
 udf_export char * UDFBATdfaregex(bat *ret, const bat *arg, const char **pattern);
 udf_export char * UDFBAThyperscanregex(bat *ret, const bat *arg, const char **pattern);
 udf_export char * UDFlvzixun_regex(int *ret, const char **pattern, const char **src);
-udf_export char * UDFcre2regex(int *ret, const char **pattern, const char **src);
 udf_export char * UDFBATlvzixun_regex(bat *ret, const bat *arg, const char **pattern);
 
 /*below is data structure for my regex*/

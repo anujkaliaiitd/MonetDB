@@ -23,6 +23,3 @@ returns BOOLEAN external name pcre.imatch;
 
 create function lvzixun_regex(pattern string, src string)
 returns int external name udf.lvzixun_regex;
-
-create function cre2regex(pattern string, src string)
-returns int external name udf.cre2regex;

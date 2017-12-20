@@ -17,7 +17,6 @@
 #include <time.h>
 #include <string.h>
 #include <stdlib.h>
-#include <cre2.h>
 
 #define OVECCOUNT 30
 #define WORCOUNT 100
@@ -30,6 +29,7 @@
 double total_time = 0;
 time_t last_update_time = 0;
 
+void get_time(struct timespec* );
 void get_time(struct timespec *start) {
   if (!DEBUG) return;
   clock_gettime(CLOCK_REALTIME, start);
@@ -337,89 +337,6 @@ char *UDFBATregex(bat *ret, const bat *arg, const char **pattern) {
 char *UDFBATdfaregex(bat *ret, const bat *arg, const char **pattern) {
   reset_total_time();
   return UDFBATcommenregex_(ret, arg, pattern, 1);
-}
-
-char *UDFcre2regex(int *ret, const char **rule, const char **source) {
-  assert(ret != NULL && rule != NULL && source != NULL);
-  *ret = 0;
-  cre2_string_t match;
-  *ret = cre2_easy_match(*rule, strlen(*rule), *source, strlen(*source), &match,
-                         1);
-
-  return MAL_SUCCEED;
-}
-
-static char *UDFBATcre2regex_(BAT **ret, BAT *src, cre2_regexp_t *re) {
-  BATiter li;
-  BAT *bn = NULL;
-  BUN p = 0, q = 0;
-  struct timespec fast_start;
-  assert(ret != NULL);
-
-  if (src == NULL)
-    throw(MAL, "batudf.cre2regex", SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
-
-  if (src->ttype != TYPE_str) {
-    throw(MAL, "batudf.cre2regex", "tail-type of input BAT must be TYPE_str");
-  }
-
-  bn = COLnew(src->hseqbase, TYPE_int, BATcount(src), TRANSIENT);
-  if (bn == NULL) {
-    throw(MAL, "batudf.cre2regex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
-  }
-
-  li = bat_iterator(src);
-  int *tr = malloc(sizeof *tr);
-  BATloop(src, p, q) {
-    int measure_time = DEBUG && MEASURE_TIME();
-    char *err = NULL;
-    const char *t = (const char *)BUNtail(li, p);
-    *tr = 0;
-    int t_len = strlen(t);
-
-    if (measure_time) get_time(&fast_start);
-    *tr = cre2_match(re, t, t_len, 0, t_len, CRE2_UNANCHORED, NULL, 0);
-    if (measure_time) time_diff(fast_start, "cre2match", 1);
-    assert(tr != NULL);
-
-    if (BUNappend(bn, tr, FALSE) != GDK_SUCCEED) {
-      BBPunfix(bn->batCacheid);
-      throw(MAL, "batudf.cre2regex", SQLSTATE(HY001) MAL_MALLOC_FAIL);
-    }
-  }
-
-  free(tr);
-  *ret = bn;
-  return MAL_SUCCEED;
-}
-
-char *UDFBATcre2regex(bat *ret, const bat *arg, const char **pattern) {
-  reset_total_time();
-  BAT *res = NULL, *src = NULL;
-  char *msg = NULL;
-  const char *error;
-  int erroffset;
-
-  assert(ret != NULL && arg != NULL);
-
-  if ((src = BATdescriptor(*arg)) == NULL)
-    throw(MAL, "batudf.cre2regex", SQLSTATE(HY002) RUNTIME_OBJECT_MISSING);
-
-  struct timespec fast_start;
-  if (DEBUG) get_time(&fast_start);
-  cre2_regexp_t *re;
-  cre2_options_t *opt = cre2_opt_new();
-  cre2_opt_set_posix_syntax(opt, 1);
-  re = cre2_new(*pattern, strlen(*pattern), opt);
-  if (DEBUG) time_diff(fast_start, "cre2compile", 1);
-  msg = UDFBATcre2regex_(&res, src, re);
-
-  BBPunfix(src->batCacheid);
-  if (msg == MAL_SUCCEED) {
-    BBPkeepref((*ret = res->batCacheid));
-  }
-  cre2_opt_delete(re);
-  return msg;
 }
 
 char *UDFlvzixun_regex(int *ret, const char **rule, const char **source) {
