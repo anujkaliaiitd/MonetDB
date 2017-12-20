@@ -16,7 +16,7 @@ int hs_find_all(char *pattern, const char *subject) {
   int subject_len = strlen(subject);
   hs_database_t *database;
   hs_compile_error_t *compile_err;
-  if (hs_compile(pattern, HS_FLAG_SINGLEMATCH, HS_MODE_BLOCK, NULL, &database,
+  if (hs_compile(pattern, 0, HS_MODE_BLOCK, NULL, &database,
                  &compile_err) != HS_SUCCESS) {
     fprintf(stderr, "ERROR: Unable to compile pattern \"%s\": %s\n", pattern,
             compile_err->message);
@@ -24,8 +24,8 @@ int hs_find_all(char *pattern, const char *subject) {
     return -1;
   }
 
-  const void *rose;
-  hs_get_bytecode_my(database, &rose);
+  //const void *rose;
+  //hs_get_bytecode_my(database, &rose);
   hs_scratch_t *scratch = NULL;
   if (hs_alloc_scratch(database, &scratch) != HS_SUCCESS) {
     fprintf(stderr, "ERROR: Unable to allocate scratch space. Exiting.\n");
@@ -33,21 +33,61 @@ int hs_find_all(char *pattern, const char *subject) {
     return -1;
   }
 
-  if (hs_scan_my(database, subject, subject_len, 0, scratch, eventHandler,
-              NULL, rose) != HS_SUCCESS) {
+  if (hs_scan(database, subject, subject_len, 0, scratch, eventHandler,
+              NULL) != HS_SUCCESS) {
     fprintf(stderr, "ERROR: Unable to scan input buffer. Exiting.\n");
     hs_free_scratch(scratch);
     return 0;
   }
-  hs_clean_rose(scratch, rose);
+  //hs_clean_rose(scratch, rose);
   hs_free_scratch(scratch);
   hs_free_database(database);
   return 1;
 }
 
+static
+int onMatchEcho(unsigned int id, unsigned long long tmp1, unsigned long long to,
+                unsigned int tmp2, void *ctx) {
+    printf("Match :%llu for %u, t1:%llu, t2:%uu\n", to, id, tmp1, tmp2);
+		count++;
+    return 0;
+}
+
+int test_hs_scan_vector() {
+
+  hs_database_t *db;
+  hs_compile_error_t *compile_err;
+	
+  hs_compile("A", HS_FLAG_SOM_LEFTMOST, HS_MODE_VECTORED, NULL, &db, &compile_err);
+
+  hs_scratch_t *scratch = NULL;
+  if (hs_alloc_scratch(db, &scratch) != HS_SUCCESS) {
+    fprintf(stderr, "ERROR: Unable to allocate scratch space. Exiting.\n");
+    hs_free_database(db);
+    return -1;
+  }
+
+  char *source_batch[8];
+	
+	int len[8], res[8];
+   for (int i = 0; i < 8; i++) {
+     source_batch[i] = (char *)malloc(64);
+     for (int j = 0; j < 64; j++) {
+       source_batch[i][j] = 'A';
+     }
+		len[i] = 64;
+   }
+	
+	hs_scan_vector(db, (const char**)source_batch, len, 8, 0, scratch, onMatchEcho, &res);
+	hs_free_scratch(scratch);
+	return 0;
+}
+
 int main() {
-  const char *subject = "abc";
-  hs_find_all("^a.", subject);
+  //const char *subject = "abc";
+  //hs_find_all("^a.", subject);
+  //printf("hs matches: %d\n", count);
+	test_hs_scan_vector();
   printf("hs matches: %d\n", count);
   /*
   int re2_result = re2_find_all("^a.", subject);
