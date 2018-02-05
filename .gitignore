@@ -73,6 +73,7 @@ buildtools/conf/
 testenv/string-generator/generate_input
 testenv/test
 testenv/test_hs
+testenv/test_regex
 autom4te.cache/
 monetdb_config.h
 confdefs.*
@@ -84,8 +85,14 @@ clients/mapiclient/tachograph
 clients/mapiclient/tomograph
 sql/server/sql_parser.tab.c
 sql/server/sql_parser.tab.h
+sql/server/y.output
 tools/merovingian/client/monetdb
+tools/merovingian/daemon/.merovingian_properties
 tools/merovingian/daemon/monetdbd
+tools/merovingian/daemon/monetdbd.1
+tools/merovingian/daemon/monetdbd.service
 tools/mserver/monet_version.c
 tools/mserver/mserver5
+tools/mserver/mserver5.1
 tools/mserver/shutdowntest
+stamp-h1
