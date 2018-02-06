@@ -301,6 +301,8 @@ static char *UDFBATlvzixun_single_regex_(BAT **ret, BAT *src,
 }
 
 static char *UDFBATlvzixun_regex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
+  const int kOnlySum = 0;
+
   BATiter li;
   BAT *bn = NULL;
   BUN p = 0, q = 0;
@@ -321,24 +323,44 @@ static char *UDFBATlvzixun_regex_(BAT **ret, BAT *src, struct fast_dfa_t *re) {
     char *err = NULL;
     const char *t = (const char *)BUNtail(li, p);
 
-    __builtin_prefetch(t, 0, 2);
-    source_batch[i & 7] = (char *)t;
-    if ((i & 7) == 7) {
-      lvzixun_fast_dfa_state_match_batch_same_len(re, source_batch, bat_ret);
-      // lvzixun_fast_dfa_reg_match_batch(re, source_batch, bat_ret);
-      int idx_start = (i >> 3) << 3;
-      for (int j = 0; j < BATCH_SIZE; j++) {
-        res[idx_start + j] = bat_ret[j];
+    if (kOnlySum == 0) {
+      // Do pattern match
+      __builtin_prefetch(t, 0, 2);
+      source_batch[i & 7] = (char *)t;
+      if ((i & 7) == 7) {
+        // lvzixun_fast_dfa_state_match_batch_same_len(re, source_batch, bat_ret);
+        lvzixun_fast_dfa_reg_match_batch(re, source_batch, bat_ret);
+        int idx_start = (i >> 3) << 3;
+        for (int j = 0; j < BATCH_SIZE; j++) {
+          res[idx_start + j] = bat_ret[j];
+        }
+      }
+    } else {
+      // Just sum up the string
+      int t_idx = 0;
+      res[i] = 0;
+      while (t[t_idx] != 0) {
+        res[i]++;
+        t_idx++;
+      }
+
+      // Set around 20% of res[i] to true so that we do similar work.
+      if (res[i] > 0) {
+        // res[i] > 0 is to force the compiler to do the above computation.
+        // It's always true.
+        res[i] = ((i % 1024) < 200);
       }
     }
     i++;
   }
 
-  lvzixun_fast_dfa_state_match_batch_same_len(re, source_batch, bat_ret);
-  // lvzixun_fast_dfa_reg_match_batch(re, source_batch, bat_ret);
-  int idx_start = i / 8 * 8;
-  for (int j = 0; j < BATCH_SIZE && idx_start + j < i; j++) {
-    res[idx_start + j] = bat_ret[j];
+  if (kOnlySum == 0) {
+    // lvzixun_fast_dfa_state_match_batch_same_len(re, source_batch, bat_ret);
+    lvzixun_fast_dfa_reg_match_batch(re, source_batch, bat_ret);
+    int idx_start = i / 8 * 8;
+    for (int j = 0; j < BATCH_SIZE && idx_start + j < i; j++) {
+      res[idx_start + j] = bat_ret[j];
+    }
   }
 
   BATsetcount(bn, len);
