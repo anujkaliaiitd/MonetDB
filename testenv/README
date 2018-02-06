@@ -1,3 +1,10 @@
+Pattern matching engine naming:
+ * match(): MonetDB's builtin
+ * regex(): UDF that uses libpcre NFA
+ * dfaregex(): UDF that uses libpcre DFA
+ * hyperscanregex(): HyperScan
+ * lvzixun_regex(): BareBones
+
 1. How to test all of the sql:
 # use generate_four_data scripts to generate your test data:
 $ ./testenv/generate_four_dataset.sh
